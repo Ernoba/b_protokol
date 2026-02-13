@@ -2,368 +2,385 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ernoba Cam-Link</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ernoba Photobooth</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;500;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
-            --primary: #4F46E5; /* Indigo Modern */
-            --secondary: #EC4899; /* Pink Creative */
-            --bg-color: #F3F4F6;
-            --card-bg: #ffffff;
-            --text-dark: #1F2937;
-            --text-light: #6B7280;
-            --success: #10B981;
-            --error: #EF4444;
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --primary: #6366f1;
+            --accent: #ec4899;
+            --text: #f8fafc;
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        
         body {
-            font-family: 'Poppins', sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-dark);
-            min-height: 100vh;
+            margin: 0; padding: 0;
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; /* Mencegah scroll */
+        }
+
+        /* --- HEADER & SERVER STATUS --- */
+        .top-bar {
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(10px);
+            z-index: 10;
+        }
+
+        .brand h1 { margin: 0; font-size: 1.2rem; font-weight: 800; letter-spacing: -0.5px; }
+        .brand span { color: var(--primary); }
+
+        .connection-status {
+            display: flex; gap: 10px; align-items: center;
+            font-size: 0.85rem;
+        }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; background: #ef4444; box-shadow: 0 0 10px #ef4444; }
+        .status-dot.connected { background: #22c55e; box-shadow: 0 0 10px #22c55e; }
+
+        select {
+            background: var(--bg); color: white; border: 1px solid #334155;
+            padding: 5px 10px; border-radius: 8px; font-size: 0.8rem;
+        }
+
+        /* --- MAIN CAMERA AREA --- */
+        .camera-container {
+            flex: 1;
+            position: relative;
+            background: black;
             display: flex;
             justify-content: center;
             align-items: center;
-            padding: 20px;
+            overflow: hidden;
         }
 
-        .container {
-            width: 100%;
-            max-width: 900px;
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 20px;
+        video {
+            width: 100%; height: 100%; object-fit: cover;
+            transform: scaleX(-1); /* Mirror effect */
         }
 
-        /* Header Branding */
-        .header {
-            text-align: center;
-            margin-bottom: 10px;
-        }
-        .header h1 {
-            font-weight: 600;
-            color: var(--text-dark);
-            letter-spacing: -0.5px;
-        }
-        .header span {
-            color: var(--primary);
-            font-weight: 800;
-        }
-        .subtitle {
-            color: var(--text-light);
-            font-size: 0.9rem;
+        .flash-overlay {
+            position: absolute; top:0; left:0; right:0; bottom:0;
+            background: white; opacity: 0; pointer-events: none;
+            transition: opacity 0.1s ease-out;
         }
 
-        /* Card System */
-        .card {
-            background: var(--card-bg);
-            border-radius: 16px;
-            padding: 25px;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+        /* --- CONTROLS --- */
+        .controls-layer {
+            position: absolute; bottom: 30px; left: 0; right: 0;
+            display: flex; justify-content: center; gap: 20px;
+            z-index: 5;
+        }
+
+        .btn-capture {
+            width: 70px; height: 70px;
+            border-radius: 50%;
+            background: white;
+            border: 4px solid rgba(255,255,255,0.3);
+            cursor: pointer;
             transition: transform 0.2s;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
         }
-        
-        .grid-layout {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-        }
-        
-        @media (max-width: 768px) {
-            .grid-layout { grid-template-columns: 1fr; }
+        .btn-capture:active { transform: scale(0.9); background: var(--primary); }
+
+        /* --- GALLERY REVIEW (Bottom Sheet) --- */
+        .review-panel {
+            background: var(--surface);
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            border-top: 1px solid #334155;
+            height: 180px; /* Fixed height for gallery */
+            transition: transform 0.3s ease;
         }
 
-        h3 {
-            font-size: 1rem;
-            color: var(--text-light);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 15px;
-            border-bottom: 2px solid #f0f0f0;
-            padding-bottom: 10px;
-        }
-
-        /* Form Elements */
-        label { display: block; font-weight: 500; margin-bottom: 8px; font-size: 0.9rem; }
-        
-        .input-group {
+        .gallery-scroll {
             display: flex;
             gap: 10px;
+            overflow-x: auto;
+            padding-bottom: 5px;
+            height: 100px;
         }
 
-        input[type="text"], select {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #E5E7EB;
-            border-radius: 10px;
-            font-family: inherit;
-            transition: border-color 0.3s;
-            background: #F9FAFB;
-        }
-
-        input:focus, select:focus {
-            outline: none;
-            border-color: var(--primary);
-            background: #fff;
-        }
-
-        /* Buttons */
-        button {
-            padding: 12px 20px;
-            border: none;
-            border-radius: 10px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-family: inherit;
-        }
-
-        .btn-primary { background: var(--primary); color: white; }
-        .btn-primary:hover { background: #4338ca; transform: translateY(-1px); }
-        
-        .btn-secondary { background: #E5E7EB; color: var(--text-dark); }
-        .btn-secondary:hover { background: #D1D5DB; }
-
-        .btn-start { 
-            background: linear-gradient(135deg, var(--primary), var(--secondary)); 
-            color: white; 
-            width: 100%;
-            font-size: 1.1rem;
-            padding: 15px;
-            box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3);
-        }
-        .btn-start:hover:not(:disabled) { box-shadow: 0 6px 20px rgba(79, 70, 229, 0.4); }
-        
-        .btn-stop { background: #fee2e2; color: #991b1b; width: 100%; }
-        .btn-stop:hover:not(:disabled) { background: #fecaca; }
-
-        button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
-
-        /* Log Box */
-        .log-container {
-            height: 250px;
-            overflow-y: auto;
-            background: #111827; /* Dark background for code/logs looks pro */
-            border-radius: 12px;
-            padding: 15px;
-            font-family: 'Courier New', monospace;
-            font-size: 0.85rem;
-            color: #d1d5db;
-        }
-        .log-entry { margin-bottom: 6px; display: flex; gap: 10px; }
-        .log-time { color: #6b7280; min-width: 70px; }
-        .log-msg-info { color: #60a5fa; }
-        .log-msg-success { color: #34d399; }
-        .log-msg-error { color: #f87171; }
-        .log-msg-warning { color: #fbbf24; }
-
-        /* Status Indicator */
-        .status-box {
-            text-align: center;
-            padding: 10px;
+        .photo-card {
+            position: relative;
+            min-width: 80px; height: 100px;
             border-radius: 8px;
-            margin-bottom: 15px;
-            font-weight: 600;
-            background: #f3f4f6;
-            color: #6b7280;
+            overflow: hidden;
+            border: 2px solid transparent;
+            transition: all 0.2s;
         }
-        .status-active { background: #d1fae5; color: #065f46; border: 1px solid #34d399; }
 
-        /* Folder Picker Icon */
-        .folder-icon { font-size: 1.2rem; }
+        .photo-card img { width: 100%; height: 100%; object-fit: cover; }
+        
+        .delete-btn {
+            position: absolute; top: 2px; right: 2px;
+            background: rgba(239, 68, 68, 0.9); color: white;
+            width: 20px; height: 20px; border-radius: 50%;
+            border: none; font-size: 12px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+        }
 
+        .action-bar {
+            display: flex; justify-content: space-between; align-items: center;
+        }
+
+        .btn-send {
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            color: white; border: none; padding: 12px 25px;
+            border-radius: 12px; font-weight: 700;
+            font-size: 0.9rem; letter-spacing: 0.5px;
+            cursor: pointer; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+            flex: 1; margin-left: 10px;
+        }
+        .btn-send:disabled { background: #475569; cursor: not-allowed; box-shadow: none; }
+
+        .count-badge {
+            background: var(--surface); padding: 5px 10px;
+            border-radius: 8px; font-size: 0.8rem; color: #94a3b8;
+            border: 1px solid #334155;
+        }
+
+        /* --- LOGS --- */
+        .log-overlay {
+            position: absolute; top: 70px; right: 20px;
+            width: 250px; max-height: 150px;
+            overflow-y: hidden;
+            pointer-events: none;
+            display: flex; flex-direction: column; gap: 5px;
+        }
+        .log-toast {
+            background: rgba(0,0,0,0.7); color: white;
+            padding: 8px 12px; border-radius: 8px;
+            font-size: 0.75rem; backdrop-filter: blur(4px);
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Hidden Canvas */
+        #hiddenCanvas { display: none; }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        
-        <div class="header">
-            <h1><span>ERNOBA</span> CREATIVE STUDIO</h1>
-            <div class="subtitle">Cam-Link Wireless Transfer System</div>
+    <div class="top-bar">
+        <div class="brand">
+            <h1>ERNOBA <span>BOOTH</span></h1>
         </div>
-
-        <div class="grid-layout">
-            <div class="card">
-                <h3>⚙️ Konfigurasi</h3>
-                
-                <div style="margin-bottom: 20px;">
-                    <label>Pilih Server Tujuan</label>
-                    <div class="input-group">
-                        <select id="serverList">
-                            <option value="">-- Scan Terlebih Dahulu --</option>
-                        </select>
-                        <button class="btn-secondary" onclick="scanServers()">🔄 Scan</button>
-                    </div>
-                    <div class="input-group" style="margin-top: 10px;">
-                        <input type="text" id="manualIp" placeholder="Atau ketik IP Manual (Cth: 192.168.1.5)">
-                        <button class="btn-secondary" onclick="useManualIp()">Set IP</button>
-                    </div>
-                    <small id="ipStatus" style="color: var(--primary); display:block; margin-top:5px; font-weight:600;"></small>
-                    <input type="hidden" id="finalIp">
-                </div>
-
-                <div>
-                    <label>Folder Sumber (Kamera)</label>
-                    <div class="input-group">
-                        <input type="text" id="folderPath" placeholder="Pilih folder..." readonly>
-                        <button class="btn-primary" id="btnBrowse" onclick="browseFolder()">📂 Pilih</button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
-                <div>
-                    <h3>🚀 Kontrol</h3>
-                    <div id="statusIndicator" class="status-box">SYSTEM IDLE</div>
-                    <p style="font-size: 0.85rem; color: #666; margin-bottom: 20px;">
-                        Sistem akan memantau folder yang dipilih. Setiap ada file gambar/video baru, file akan otomatis dikirim ke server dan dihapus dari komputer ini.
-                    </p>
-                </div>
-                <div style="display: flex; gap: 10px;">
-                    <button id="btnStart" class="btn-start" onclick="startMonitoring()">MULAI LINK</button>
-                    <button id="btnStop" class="btn-stop" onclick="stopMonitoring()" disabled>STOP</button>
-                </div>
-            </div>
+        <div class="connection-status">
+            <div id="statusDot" class="status-dot"></div>
+            <select id="serverSelect" onchange="setServer()">
+                <option value="">-- Pilih Server --</option>
+            </select>
+            <button onclick="scanServers()" style="background:none; border:none; cursor:pointer; color:white;">🔄</button>
         </div>
-
-        <div class="card">
-            <h3>📡 Live Activity Log</h3>
-            <div class="log-container" id="logBox">
-                <div class="log-entry"><span class="log-time">--:--</span><span>Menunggu aktivitas...</span></div>
-            </div>
-        </div>
-
     </div>
 
-    <script>
-        let isRunning = false;
+    <div class="camera-container">
+        <video id="videoFeed" autoplay playsinline></video>
+        <div id="flash" class="flash-overlay"></div>
+        
+        <div class="log-overlay" id="logContainer"></div>
 
-        // --- FUNGSI PILIH FOLDER (BARU) ---
-        function browseFolder() {
-            fetch('/api/browse')
+        <div class="controls-layer">
+            <button class="btn-capture" onclick="takePhoto()"></button>
+        </div>
+    </div>
+
+    <div class="review-panel">
+        <div class="action-bar">
+            <div class="count-badge" id="photoCount">0 Foto Terpilih</div>
+            <button id="sendBtn" class="btn-send" onclick="sendPhotos()" disabled>KIRIM KE SERVER 🚀</button>
+        </div>
+        <div class="gallery-scroll" id="gallery">
+            <div style="width:100%; display:flex; align-items:center; justify-content:center; color:#64748b; font-size:0.8rem;">
+                Belum ada foto. Tekan tombol bulat di atas!
+            </div>
+        </div>
+    </div>
+
+    <canvas id="hiddenCanvas"></canvas>
+
+    <script>
+        // State
+        let capturedBlobs = []; // Menyimpan objek {id, blob}
+        let currentServer = null;
+
+        // Init Camera
+        async function initCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } }, 
+                    audio: false 
+                });
+                const video = document.getElementById('videoFeed');
+                video.srcObject = stream;
+            } catch (err) {
+                showLog("Gagal akses kamera: " + err, "err");
+            }
+        }
+
+        // Capture Logic
+        function takePhoto() {
+            const video = document.getElementById('videoFeed');
+            const canvas = document.getElementById('hiddenCanvas');
+            const context = canvas.getContext('2d');
+
+            // Flash Effect
+            const flash = document.getElementById('flash');
+            flash.style.opacity = '1';
+            setTimeout(() => flash.style.opacity = '0', 100);
+
+            // Draw to Canvas
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            
+            // Mirror image context if using front camera usually requires scale(-1,1) but
+            // for simplicity we save what the camera sees. If we want to save mirrored:
+            context.translate(canvas.width, 0);
+            context.scale(-1, 1);
+            
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // Convert to Blob
+            canvas.toBlob(blob => {
+                const id = Date.now();
+                capturedBlobs.push({ id, blob });
+                renderGallery();
+            }, 'image/jpeg', 0.9);
+        }
+
+        // Render Gallery
+        function renderGallery() {
+            const gallery = document.getElementById('gallery');
+            const countLabel = document.getElementById('photoCount');
+            const sendBtn = document.getElementById('sendBtn');
+
+            gallery.innerHTML = '';
+            
+            if (capturedBlobs.length === 0) {
+                gallery.innerHTML = '<div style="width:100%; display:flex; align-items:center; justify-content:center; color:#64748b; font-size:0.8rem;">Belum ada foto.</div>';
+                sendBtn.disabled = true;
+                countLabel.innerText = "0 Foto Terpilih";
+                return;
+            }
+
+            // Reverse loop to show newest first
+            [...capturedBlobs].reverse().forEach(item => {
+                const url = URL.createObjectURL(item.blob);
+                
+                const card = document.createElement('div');
+                card.className = 'photo-card';
+                card.innerHTML = `
+                    <img src="${url}">
+                    <button class="delete-btn" onclick="removePhoto(${item.id})">✕</button>
+                `;
+                gallery.appendChild(card);
+            });
+
+            countLabel.innerText = `${capturedBlobs.length} Foto Terpilih`;
+            sendBtn.disabled = false;
+        }
+
+        function removePhoto(id) {
+            capturedBlobs = capturedBlobs.filter(p => p.id !== id);
+            renderGallery();
+        }
+
+        // Sending Logic
+        async function sendPhotos() {
+            if (!currentServer) {
+                alert("⚠️ Pilih Server Tujuan dulu di pojok kanan atas!");
+                return;
+            }
+
+            const sendBtn = document.getElementById('sendBtn');
+            sendBtn.innerHTML = "⏳ Mengirim...";
+            sendBtn.disabled = true;
+
+            const formData = new FormData();
+            capturedBlobs.forEach((item, index) => {
+                formData.append('file', item.blob, `capture_${index}.jpg`);
+            });
+
+            try {
+                const res = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                
+                if (data.status === 'ok') {
+                    showLog(`✅ Sukses mengirim ${data.count} foto!`, 'success');
+                    capturedBlobs = []; // Clear gallery
+                    renderGallery();
+                } else {
+                    showLog("❌ Gagal: " + data.error, "err");
+                }
+            } catch (err) {
+                showLog("❌ Error Jaringan", "err");
+            } finally {
+                sendBtn.innerHTML = "KIRIM KE SERVER 🚀";
+                // Keep disabled if empty, handled by renderGallery
+                if(capturedBlobs.length > 0) sendBtn.disabled = false;
+            }
+        }
+
+        // --- Server & Utils ---
+        function scanServers() {
+            const sel = document.getElementById('serverSelect');
+            sel.innerHTML = "<option>Scanning...</option>";
+            
+            fetch('/api/scan')
                 .then(r => r.json())
                 .then(data => {
-                    if(data.path) {
-                        document.getElementById('folderPath').value = data.path;
+                    sel.innerHTML = '<option value="">-- Pilih Server --</option>';
+                    for (const [ip, info] of Object.entries(data)) {
+                        const opt = document.createElement('option');
+                        opt.value = ip;
+                        opt.innerText = `${info.name}`;
+                        sel.appendChild(opt);
                     }
-                })
-                .catch(err => alert("Gagal membuka dialog folder"));
+                });
         }
 
-        // --- FUNGSI SCAN SERVER ---
-        function scanServers() {
-            const sel = document.getElementById('serverList');
-            sel.innerHTML = '<option>Mencari...</option>';
-            sel.disabled = true;
+        function setServer() {
+            const ip = document.getElementById('serverSelect').value;
+            if(!ip) return;
             
-            fetch('/api/scan').then(r => r.json()).then(data => {
-                sel.innerHTML = '';
-                sel.disabled = false;
-                const entries = Object.entries(data);
-                
-                if(entries.length === 0) {
-                    sel.innerHTML = '<option value="">Tidak ada server ditemukan</option>';
-                    return;
-                }
-                
-                // Tambahkan opsi default
-                const def = document.createElement('option');
-                def.text = "-- Pilih Server --";
-                def.value = "";
-                sel.appendChild(def);
-
-                for (const [ip, info] of entries) {
-                    const opt = document.createElement('option');
-                    opt.value = ip;
-                    opt.innerText = `${info.name} (${ip})`;
-                    sel.appendChild(opt);
-                }
-            });
-        }
-
-        // Event Listener saat dropdown dipilih
-        document.getElementById('serverList').addEventListener('change', function() {
-            if(this.value) setServer(this.value);
-        });
-
-        function useManualIp() {
-            const ip = document.getElementById('manualIp').value;
-            if(ip) setServer(ip);
-        }
-
-        function setServer(ip) {
-            document.getElementById('finalIp').value = ip;
-            document.getElementById('ipStatus').innerText = "✓ Target: " + ip;
-        }
-
-        // --- FUNGSI MONITORING ---
-        function startMonitoring() {
-            const folder = document.getElementById('folderPath').value;
-            const ip = document.getElementById('finalIp').value;
-            
-            if (!ip) return alert("Harap pilih Server tujuan terlebih dahulu!");
-            if (!folder) return alert("Harap pilih Folder sumber terlebih dahulu!");
-
-            // UI Loading state
-            document.getElementById('btnStart').innerText = "MEMULAI...";
-            document.getElementById('btnStart').disabled = true;
-
-            fetch('/api/start', {
+            fetch('/api/set_server', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({folder: folder, target_ip: ip})
-            }).then(r => r.json()).then(res => {
-                if(res.status === 'ok') {
-                    isRunning = true;
-                    toggleUI(true);
-                } else {
-                    alert("Error: " + res.message);
-                    toggleUI(false);
-                }
+                body: JSON.stringify({ip: ip})
+            }).then(() => {
+                currentServer = ip;
+                document.getElementById('statusDot').classList.add('connected');
+                showLog("Terhubung ke " + ip, "success");
             });
         }
 
-        function stopMonitoring() {
-            fetch('/api/stop').then(r => r.json()).then(() => {
-                isRunning = false;
-                toggleUI(false);
-            });
+        function showLog(msg, type) {
+            const container = document.getElementById('logContainer');
+            const div = document.createElement('div');
+            div.className = 'log-toast';
+            div.style.borderLeft = type === 'success' ? '3px solid #22c55e' : '3px solid #ef4444';
+            div.innerText = msg;
+            container.appendChild(div);
+            setTimeout(() => div.remove(), 3000);
         }
 
-        function toggleUI(active) {
-            document.getElementById('btnStart').disabled = active;
-            document.getElementById('btnStart').innerText = active ? "BERJALAN..." : "MULAI LINK";
-            document.getElementById('btnStop').disabled = !active;
-            
-            document.getElementById('btnBrowse').disabled = active;
-            document.getElementById('serverList').disabled = active;
-            document.getElementById('manualIp').disabled = active;
-
-            const status = document.getElementById('statusIndicator');
-            status.innerText = active ? "MONITORING ACTIVE" : "SYSTEM IDLE";
-            status.className = active ? "status-box status-active" : "status-box";
-        }
-
-        // --- UPDATE LOGS ---
-        function updateLog() {
-            fetch('/api/logs').then(r => r.json()).then(data => {
-                const box = document.getElementById('logBox');
-                // Render log dengan warna warni
-                box.innerHTML = data.logs.map(l => 
-                    `<div class="log-entry">
-                        <span class="log-time">${l.time}</span>
-                        <span class="log-msg-${l.type}">${l.msg}</span>
-                    </div>`
-                ).join('');
-            });
-        }
-
-        setInterval(updateLog, 1000);
-
+        // Start
+        initCamera();
+        scanServers(); // Auto scan on load
     </script>
 </body>
 </html>

@@ -1,134 +1,118 @@
-import time
 import os
-import sys
+import time
 import threading
-import tkinter as tk
-from tkinter import filedialog
+import uuid
+import socket
 from flask import Flask, render_template, jsonify, request
-from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler
+from werkzeug.utils import secure_filename
 
-# Import library BProto
-try:
-    from bproto import BProto
-except ImportError:
-    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-    from bproto import BProto
+# Import library bproto Anda
+from bproto import BProto
 
-app = Flask(__name__)
+# Konfigurasi Flask
+app = Flask(__name__, template_folder='templates') # Pastikan folder templates ada
 
-# --- GLOBAL STATE ---
+# Konfigurasi Folder
+UPLOAD_FOLDER = 'temp_uploads'
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
+
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+# State Global
 STATE = {
-    "bproto": None,
-    "observer": None,
+    "client": None,
     "target_ip": None,
-    "folder_path": None,
     "logs": []
 }
 
-# Inisialisasi BProto Client
-client = BProto(device_name="Ernoba-Creative-Client", secret="ernoba-root")
-client.start()
-STATE["bproto"] = client
+# --- BPROTO INIT ---
+# Inisialisasi BProto
+STATE["client"] = BProto(device_name="Ernoba-Photobooth")
+STATE["client"].start()
 
-# --- LOGGING HELPER ---
 def add_log(msg, type="info"):
-    timestamp = time.strftime("%H:%M:%S")
-    # Tipe: info, success, error, warning
-    entry = {"time": timestamp, "msg": msg, "type": type}
+    t = time.strftime("%H:%M:%S")
+    entry = {"time": t, "msg": msg, "type": type}
     STATE["logs"].insert(0, entry)
     if len(STATE["logs"]) > 50: STATE["logs"].pop()
-    print(f"[{timestamp}] {msg}")
+    print(f"[{type.upper()}] {msg}")
 
-# --- WATCHDOG HANDLER ---
-class AutoMoveHandler(FileSystemEventHandler):
-    def on_created(self, event):
-        if event.is_directory: return
+def process_and_send(filepath, filename):
+    """
+    Fungsi background: Kirim file ke Server BProto lalu hapus.
+    Dijalankan di thread terpisah.
+    """
+    target = STATE["target_ip"]
+    if not target:
+        add_log(f"Tertunda: {filename} (Pilih Server!)", "error")
+        return
 
-        filepath = event.src_path
-        filename = os.path.basename(filepath)
+    # Beri jeda sedikit agar UI terasa responsif dulu
+    time.sleep(0.5)
+    
+    add_log(f"Mengirim: {filename} -> {target}...", "info")
+    try:
+        # Kirim menggunakan BProto
+        STATE["client"].send_file(target, filepath)
+        add_log(f"✅ Terkirim: {filename}", "success")
         
-        valid_ext = ('.jpg', '.jpeg', '.png', '.mp4', '.avi', '.mov', '.raw')
-        if not filename.lower().endswith(valid_ext):
-            return
-
-        time.sleep(1) # Buffer write time
-        
-        target_ip = STATE["target_ip"]
-        if not target_ip: return
-
-        add_log(f"Mendeteksi file baru: {filename}...", "info")
-
+        # Hapus file temporary setelah terkirim untuk hemat storage
         try:
-            client.send_file(target_ip, filepath)
-            add_log(f"Berhasil dikirim: {filename}", "success")
-            try:
-                os.remove(filepath)
-                add_log(f"File lokal dibersihkan.", "warning")
-            except Exception as e:
-                add_log(f"Gagal hapus lokal: {e}", "error")
+            os.remove(filepath)
+        except: pass
+        
+    except Exception as e:
+        add_log(f"❌ Gagal: {filename} - {str(e)}", "error")
 
-        except Exception as e:
-            add_log(f"Gagal kirim {filename}: {e}", "error")
-
-# --- FLASK ROUTES ---
+# --- ROUTES ---
 
 @app.route('/')
 def index():
+    # Pastikan file index.html ada di dalam folder 'templates/'
     return render_template('index.html')
 
 @app.route('/api/scan')
 def api_scan():
-    client.scan()
-    time.sleep(1)
-    return jsonify(client.peers)
+    STATE["client"].scan()
+    # Tunggu respons UDP broadcast
+    time.sleep(1.0) 
+    return jsonify(STATE["client"].peers)
 
-@app.route('/api/browse')
-def api_browse():
-    """Membuka Dialog Pilih Folder Native OS"""
-    try:
-        root = tk.Tk()
-        root.withdraw() # Sembunyikan window utama tkinter
-        root.attributes('-topmost', True) # Agar popup muncul di paling depan
-        folder_selected = filedialog.askdirectory()
-        root.destroy()
-        return jsonify({"path": folder_selected})
-    except Exception as e:
-        return jsonify({"path": "", "error": str(e)})
-
-@app.route('/api/start', methods=['POST'])
-def api_start():
+@app.route('/api/set_server', methods=['POST'])
+def api_set_server():
     data = request.json
-    folder = data.get('folder')
-    ip = data.get('target_ip')
-
-    if not os.path.exists(folder):
-        return jsonify({"status": "error", "message": "Folder tidak valid!"})
-
+    ip = data.get('ip')
     STATE["target_ip"] = ip
-    STATE["folder_path"] = folder
+    add_log(f"Target Server diset ke: {ip}", "success")
+    return jsonify({"status": "ok", "target": ip})
 
-    if STATE["observer"]:
-        STATE["observer"].stop()
-        STATE["observer"].join()
-
-    event_handler = AutoMoveHandler()
-    observer = Observer()
-    observer.schedule(event_handler, folder, recursive=False)
-    observer.start()
+@app.route('/api/upload', methods=['POST'])
+def api_upload():
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part"}), 400
     
-    STATE["observer"] = observer
-    add_log(f"Layanan dimulai pada folder: {os.path.basename(folder)}", "success")
-    return jsonify({"status": "ok"})
+    files = request.files.getlist('file')
+    if not STATE["target_ip"]:
+        return jsonify({"error": "⚠️ Server Tujuan Belum Dipilih!"}), 400
 
-@app.route('/api/stop')
-def api_stop():
-    if STATE["observer"]:
-        STATE["observer"].stop()
-        STATE["observer"].join()
-        STATE["observer"] = None
-        add_log("Layanan dihentikan.", "warning")
-    return jsonify({"status": "ok"})
+    count = 0
+    for file in files:
+        if file.filename == '': continue
+        
+        # Generate nama unik agar tidak bentrok saat foto beruntun
+        ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else 'jpg'
+        unique_name = f"photo_{uuid.uuid4().hex[:8]}.{ext}"
+        filename = secure_filename(unique_name)
+        
+        save_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(save_path)
+        
+        # Jalankan pengiriman di background thread
+        threading.Thread(target=process_and_send, args=(save_path, filename)).start()
+        count += 1
+        
+    return jsonify({"status": "ok", "count": count})
 
 @app.route('/api/logs')
 def api_logs():
@@ -136,8 +120,18 @@ def api_logs():
 
 if __name__ == "__main__":
     try:
-        print("Ernoba Creative Client Running on http://localhost:5000")
+        # Mendapatkan IP Lokal untuk ditampilkan di Terminal
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(('8.8.8.8', 80))
+        my_ip = s.getsockname()[0]
+        s.close()
+        
+        print(f"==========================================")
+        print(f" 📸 ERNOBA PHOTOBOOTH SYSTEM STARTED")
+        print(f" 🔗 Akses UI di: http://{my_ip}:5000")
+        print(f"==========================================")
+        
         app.run(host='0.0.0.0', port=5000, debug=False)
     except KeyboardInterrupt:
-        client.stop()
-        if STATE["observer"]: STATE["observer"].stop()
+        print("\nStopping Service...")
+        STATE["client"].stop()
