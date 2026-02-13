@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ernoba Cam-Link Client</title>
+    <style>
+        body { background-color: #1a1a1a; color: #00ff00; font-family: 'Courier New', monospace; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; border: 1px solid #00ff00; padding: 20px; box-shadow: 0 0 10px #00ff00; }
+        h1 { text-align: center; border-bottom: 1px solid #333; padding-bottom: 10px; }
+        .card { background: #222; padding: 15px; margin-bottom: 15px; border-radius: 5px; }
+        input, select, button { background: #000; color: #00ff00; border: 1px solid #00ff00; padding: 10px; width: 100%; margin-top: 5px; font-family: inherit; }
+        button:hover { background: #00ff00; color: #000; cursor: pointer; }
+        button:disabled { border-color: #555; color: #555; cursor: not-allowed; }
+        .log-box { height: 300px; overflow-y: scroll; background: #000; border: 1px solid #333; padding: 10px; font-size: 12px; }
+        .log-entry { margin-bottom: 5px; border-bottom: 1px dashed #333; }
+        .status-badge { display: inline-block; padding: 5px 10px; border-radius: 3px; font-weight: bold; }
+        .status-idle { background: #555; color: #fff; }
+        .status-active { background: #00ff00; color: #000; animation: blink 1s infinite; }
+        @keyframes blink { 50% { opacity: 0.5; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>ERNOBA CAM-LINK CLIENT</h1>
+        
+        <div class="card">
+            <h3>1. Konfigurasi</h3>
+            <label>Target Folder (Path Absolut di Komputer ini):</label>
+            <input type="text" id="folderPath" placeholder="Contoh: C:\Users\Ernoba\Pictures\Camera" value="./DCIM">
+            
+            <label style="margin-top: 10px; display:block;">Pilih Server Tujuan:</label>
+            <div style="display: flex; gap: 5px;">
+                <select id="serverList">
+                    <option value="">-- Scan dulu --</option>
+                </select>
+                <button onclick="scanServers()" style="width: 30%;">🔄 Scan</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>2. Kontrol Monitoring</h3>
+            <div style="display: flex; gap: 10px;">
+                <button id="btnStart" onclick="startMonitoring()">▶ MULAI MONITORING</button>
+                <button id="btnStop" onclick="stopMonitoring()" disabled>⏹ BERHENTI</button>
+            </div>
+            <div style="margin-top: 10px;">
+                Status: <span id="statusText" class="status-badge status-idle">IDLE</span>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>3. Live Log (Auto-Move)</h3>
+            <div class="log-box" id="logBox">
+                <div class="log-entry">Menunggu perintah...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let isRunning = false;
+
+        function updateLog() {
+            fetch('/api/logs').then(r => r.json()).then(data => {
+                const box = document.getElementById('logBox');
+                box.innerHTML = data.logs.map(l => `<div class="log-entry">${l}</div>`).join('');
+                // Auto scroll ke bawah
+                // box.scrollTop = box.scrollHeight; 
+            });
+        }
+
+        function scanServers() {
+            document.getElementById('serverList').innerHTML = '<option>Scanning...</option>';
+            fetch('/api/scan').then(r => r.json()).then(data => {
+                const sel = document.getElementById('serverList');
+                sel.innerHTML = '';
+                if(Object.keys(data).length === 0) {
+                    sel.innerHTML = '<option value="">Tidak ada server ditemukan</option>';
+                    return;
+                }
+                for (const [ip, info] of Object.entries(data)) {
+                    const opt = document.createElement('option');
+                    opt.value = ip;
+                    opt.innerText = `${info.name} (${ip})`;
+                    sel.appendChild(opt);
+                }
+            });
+        }
+
+        function startMonitoring() {
+            const folder = document.getElementById('folderPath').value;
+            const ip = document.getElementById('serverList').value;
+            
+            if (!ip || !folder) {
+                alert("Pilih server dan folder dulu!");
+                return;
+            }
+
+            fetch('/api/start', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({folder: folder, target_ip: ip})
+            }).then(r => r.json()).then(res => {
+                if(res.status === 'ok') {
+                    isRunning = true;
+                    toggleUI(true);
+                    alert("Monitoring Dimulai! File di folder tersebut akan otomatis dipindah.");
+                } else {
+                    alert("Error: " + res.message);
+                }
+            });
+        }
+
+        function stopMonitoring() {
+            fetch('/api/stop').then(r => r.json()).then(() => {
+                isRunning = false;
+                toggleUI(false);
+            });
+        }
+
+        function toggleUI(active) {
+            document.getElementById('btnStart').disabled = active;
+            document.getElementById('btnStop').disabled = !active;
+            document.getElementById('folderPath').disabled = active;
+            document.getElementById('serverList').disabled = active;
+            const status = document.getElementById('statusText');
+            status.innerText = active ? "MONITORING ACTIVE" : "IDLE";
+            status.className = active ? "status-badge status-active" : "status-badge status-idle";
+        }
+
+        // Interval update log
+        setInterval(updateLog, 1000);
+    </script>
+</body>
+</html>
