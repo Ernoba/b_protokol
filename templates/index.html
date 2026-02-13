@@ -3,82 +3,280 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ernoba Cam-Link Client</title>
+    <title>Ernoba Cam-Link</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
-        body { background-color: #1a1a1a; color: #00ff00; font-family: 'Courier New', monospace; padding: 20px; }
-        .container { max-width: 800px; margin: 0 auto; border: 1px solid #00ff00; padding: 20px; box-shadow: 0 0 10px #00ff00; }
-        h1 { text-align: center; border-bottom: 1px solid #333; padding-bottom: 10px; }
-        .card { background: #222; padding: 15px; margin-bottom: 15px; border-radius: 5px; }
-        input, select, button { background: #000; color: #00ff00; border: 1px solid #00ff00; padding: 10px; width: 100%; margin-top: 5px; font-family: inherit; }
-        button:hover { background: #00ff00; color: #000; cursor: pointer; }
-        button:disabled { border-color: #555; color: #555; cursor: not-allowed; }
-        .log-box { height: 300px; overflow-y: scroll; background: #000; border: 1px solid #333; padding: 10px; font-size: 12px; }
-        .log-entry { margin-bottom: 5px; border-bottom: 1px dashed #333; }
-        .status-badge { display: inline-block; padding: 5px 10px; border-radius: 3px; font-weight: bold; }
-        .status-idle { background: #555; color: #fff; }
-        .status-active { background: #00ff00; color: #000; animation: blink 1s infinite; }
-        @keyframes blink { 50% { opacity: 0.5; } }
+        :root {
+            --primary: #4F46E5; /* Indigo Modern */
+            --secondary: #EC4899; /* Pink Creative */
+            --bg-color: #F3F4F6;
+            --card-bg: #ffffff;
+            --text-dark: #1F2937;
+            --text-light: #6B7280;
+            --success: #10B981;
+            --error: #EF4444;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-dark);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+
+        /* Header Branding */
+        .header {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .header h1 {
+            font-weight: 600;
+            color: var(--text-dark);
+            letter-spacing: -0.5px;
+        }
+        .header span {
+            color: var(--primary);
+            font-weight: 800;
+        }
+        .subtitle {
+            color: var(--text-light);
+            font-size: 0.9rem;
+        }
+
+        /* Card System */
+        .card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 25px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+            transition: transform 0.2s;
+        }
+        
+        .grid-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .grid-layout { grid-template-columns: 1fr; }
+        }
+
+        h3 {
+            font-size: 1rem;
+            color: var(--text-light);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 10px;
+        }
+
+        /* Form Elements */
+        label { display: block; font-weight: 500; margin-bottom: 8px; font-size: 0.9rem; }
+        
+        .input-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        input[type="text"], select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #E5E7EB;
+            border-radius: 10px;
+            font-family: inherit;
+            transition: border-color 0.3s;
+            background: #F9FAFB;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: #fff;
+        }
+
+        /* Buttons */
+        button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: inherit;
+        }
+
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: #4338ca; transform: translateY(-1px); }
+        
+        .btn-secondary { background: #E5E7EB; color: var(--text-dark); }
+        .btn-secondary:hover { background: #D1D5DB; }
+
+        .btn-start { 
+            background: linear-gradient(135deg, var(--primary), var(--secondary)); 
+            color: white; 
+            width: 100%;
+            font-size: 1.1rem;
+            padding: 15px;
+            box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3);
+        }
+        .btn-start:hover:not(:disabled) { box-shadow: 0 6px 20px rgba(79, 70, 229, 0.4); }
+        
+        .btn-stop { background: #fee2e2; color: #991b1b; width: 100%; }
+        .btn-stop:hover:not(:disabled) { background: #fecaca; }
+
+        button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        /* Log Box */
+        .log-container {
+            height: 250px;
+            overflow-y: auto;
+            background: #111827; /* Dark background for code/logs looks pro */
+            border-radius: 12px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            color: #d1d5db;
+        }
+        .log-entry { margin-bottom: 6px; display: flex; gap: 10px; }
+        .log-time { color: #6b7280; min-width: 70px; }
+        .log-msg-info { color: #60a5fa; }
+        .log-msg-success { color: #34d399; }
+        .log-msg-error { color: #f87171; }
+        .log-msg-warning { color: #fbbf24; }
+
+        /* Status Indicator */
+        .status-box {
+            text-align: center;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-weight: 600;
+            background: #f3f4f6;
+            color: #6b7280;
+        }
+        .status-active { background: #d1fae5; color: #065f46; border: 1px solid #34d399; }
+
+        /* Folder Picker Icon */
+        .folder-icon { font-size: 1.2rem; }
+
     </style>
 </head>
 <body>
+
     <div class="container">
-        <h1>ERNOBA CAM-LINK CLIENT</h1>
         
-        <div class="card">
-            <h3>1. Konfigurasi</h3>
-            <label>Target Folder (Path Absolut di Komputer ini):</label>
-            <input type="text" id="folderPath" placeholder="Contoh: C:\Users\Ernoba\Pictures\Camera" value="./DCIM">
-            
-            <label style="margin-top: 10px; display:block;">Pilih Server Tujuan:</label>
-            <div style="display: flex; gap: 5px;">
-                <select id="serverList">
-                    <option value="">-- Scan dulu --</option>
-                </select>
-                <button onclick="scanServers()" style="width: 30%;">🔄 Scan</button>
+        <div class="header">
+            <h1><span>ERNOBA</span> CREATIVE STUDIO</h1>
+            <div class="subtitle">Cam-Link Wireless Transfer System</div>
+        </div>
+
+        <div class="grid-layout">
+            <div class="card">
+                <h3>⚙️ Konfigurasi</h3>
+                
+                <div style="margin-bottom: 20px;">
+                    <label>Pilih Server Tujuan</label>
+                    <div class="input-group">
+                        <select id="serverList">
+                            <option value="">-- Scan Terlebih Dahulu --</option>
+                        </select>
+                        <button class="btn-secondary" onclick="scanServers()">🔄 Scan</button>
+                    </div>
+                    <div class="input-group" style="margin-top: 10px;">
+                        <input type="text" id="manualIp" placeholder="Atau ketik IP Manual (Cth: 192.168.1.5)">
+                        <button class="btn-secondary" onclick="useManualIp()">Set IP</button>
+                    </div>
+                    <small id="ipStatus" style="color: var(--primary); display:block; margin-top:5px; font-weight:600;"></small>
+                    <input type="hidden" id="finalIp">
+                </div>
+
+                <div>
+                    <label>Folder Sumber (Kamera)</label>
+                    <div class="input-group">
+                        <input type="text" id="folderPath" placeholder="Pilih folder..." readonly>
+                        <button class="btn-primary" id="btnBrowse" onclick="browseFolder()">📂 Pilih</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
+                <div>
+                    <h3>🚀 Kontrol</h3>
+                    <div id="statusIndicator" class="status-box">SYSTEM IDLE</div>
+                    <p style="font-size: 0.85rem; color: #666; margin-bottom: 20px;">
+                        Sistem akan memantau folder yang dipilih. Setiap ada file gambar/video baru, file akan otomatis dikirim ke server dan dihapus dari komputer ini.
+                    </p>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button id="btnStart" class="btn-start" onclick="startMonitoring()">MULAI LINK</button>
+                    <button id="btnStop" class="btn-stop" onclick="stopMonitoring()" disabled>STOP</button>
+                </div>
             </div>
         </div>
 
         <div class="card">
-            <h3>2. Kontrol Monitoring</h3>
-            <div style="display: flex; gap: 10px;">
-                <button id="btnStart" onclick="startMonitoring()">▶ MULAI MONITORING</button>
-                <button id="btnStop" onclick="stopMonitoring()" disabled>⏹ BERHENTI</button>
-            </div>
-            <div style="margin-top: 10px;">
-                Status: <span id="statusText" class="status-badge status-idle">IDLE</span>
+            <h3>📡 Live Activity Log</h3>
+            <div class="log-container" id="logBox">
+                <div class="log-entry"><span class="log-time">--:--</span><span>Menunggu aktivitas...</span></div>
             </div>
         </div>
 
-        <div class="card">
-            <h3>3. Live Log (Auto-Move)</h3>
-            <div class="log-box" id="logBox">
-                <div class="log-entry">Menunggu perintah...</div>
-            </div>
-        </div>
     </div>
 
     <script>
         let isRunning = false;
 
-        function updateLog() {
-            fetch('/api/logs').then(r => r.json()).then(data => {
-                const box = document.getElementById('logBox');
-                box.innerHTML = data.logs.map(l => `<div class="log-entry">${l}</div>`).join('');
-                // Auto scroll ke bawah
-                // box.scrollTop = box.scrollHeight; 
-            });
+        // --- FUNGSI PILIH FOLDER (BARU) ---
+        function browseFolder() {
+            fetch('/api/browse')
+                .then(r => r.json())
+                .then(data => {
+                    if(data.path) {
+                        document.getElementById('folderPath').value = data.path;
+                    }
+                })
+                .catch(err => alert("Gagal membuka dialog folder"));
         }
 
+        // --- FUNGSI SCAN SERVER ---
         function scanServers() {
-            document.getElementById('serverList').innerHTML = '<option>Scanning...</option>';
+            const sel = document.getElementById('serverList');
+            sel.innerHTML = '<option>Mencari...</option>';
+            sel.disabled = true;
+            
             fetch('/api/scan').then(r => r.json()).then(data => {
-                const sel = document.getElementById('serverList');
                 sel.innerHTML = '';
-                if(Object.keys(data).length === 0) {
+                sel.disabled = false;
+                const entries = Object.entries(data);
+                
+                if(entries.length === 0) {
                     sel.innerHTML = '<option value="">Tidak ada server ditemukan</option>';
                     return;
                 }
-                for (const [ip, info] of Object.entries(data)) {
+                
+                // Tambahkan opsi default
+                const def = document.createElement('option');
+                def.text = "-- Pilih Server --";
+                def.value = "";
+                sel.appendChild(def);
+
+                for (const [ip, info] of entries) {
                     const opt = document.createElement('option');
                     opt.value = ip;
                     opt.innerText = `${info.name} (${ip})`;
@@ -87,14 +285,32 @@
             });
         }
 
+        // Event Listener saat dropdown dipilih
+        document.getElementById('serverList').addEventListener('change', function() {
+            if(this.value) setServer(this.value);
+        });
+
+        function useManualIp() {
+            const ip = document.getElementById('manualIp').value;
+            if(ip) setServer(ip);
+        }
+
+        function setServer(ip) {
+            document.getElementById('finalIp').value = ip;
+            document.getElementById('ipStatus').innerText = "✓ Target: " + ip;
+        }
+
+        // --- FUNGSI MONITORING ---
         function startMonitoring() {
             const folder = document.getElementById('folderPath').value;
-            const ip = document.getElementById('serverList').value;
+            const ip = document.getElementById('finalIp').value;
             
-            if (!ip || !folder) {
-                alert("Pilih server dan folder dulu!");
-                return;
-            }
+            if (!ip) return alert("Harap pilih Server tujuan terlebih dahulu!");
+            if (!folder) return alert("Harap pilih Folder sumber terlebih dahulu!");
+
+            // UI Loading state
+            document.getElementById('btnStart').innerText = "MEMULAI...";
+            document.getElementById('btnStart').disabled = true;
 
             fetch('/api/start', {
                 method: 'POST',
@@ -104,9 +320,9 @@
                 if(res.status === 'ok') {
                     isRunning = true;
                     toggleUI(true);
-                    alert("Monitoring Dimulai! File di folder tersebut akan otomatis dipindah.");
                 } else {
                     alert("Error: " + res.message);
+                    toggleUI(false);
                 }
             });
         }
@@ -120,16 +336,34 @@
 
         function toggleUI(active) {
             document.getElementById('btnStart').disabled = active;
+            document.getElementById('btnStart').innerText = active ? "BERJALAN..." : "MULAI LINK";
             document.getElementById('btnStop').disabled = !active;
-            document.getElementById('folderPath').disabled = active;
+            
+            document.getElementById('btnBrowse').disabled = active;
             document.getElementById('serverList').disabled = active;
-            const status = document.getElementById('statusText');
-            status.innerText = active ? "MONITORING ACTIVE" : "IDLE";
-            status.className = active ? "status-badge status-active" : "status-badge status-idle";
+            document.getElementById('manualIp').disabled = active;
+
+            const status = document.getElementById('statusIndicator');
+            status.innerText = active ? "MONITORING ACTIVE" : "SYSTEM IDLE";
+            status.className = active ? "status-box status-active" : "status-box";
         }
 
-        // Interval update log
+        // --- UPDATE LOGS ---
+        function updateLog() {
+            fetch('/api/logs').then(r => r.json()).then(data => {
+                const box = document.getElementById('logBox');
+                // Render log dengan warna warni
+                box.innerHTML = data.logs.map(l => 
+                    `<div class="log-entry">
+                        <span class="log-time">${l.time}</span>
+                        <span class="log-msg-${l.type}">${l.msg}</span>
+                    </div>`
+                ).join('');
+            });
+        }
+
         setInterval(updateLog, 1000);
+
     </script>
 </body>
 </html>
