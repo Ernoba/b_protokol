@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ernoba Creative Studio</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <nav class="app-header">
+        <div class="logo">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            <span>Ernoba Photobooth Editor</span>
+        </div>
+        <div class="header-controls">
+            <button class="btn btn-primary" onclick="showProcessModal()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Export
+            </button>
+        </div>
+    </nav>
+
+    <div class="app-container">
+        
+        <aside class="left-panel">
+            
+            <div class="panel-section">
+                <div class="section-header">Library & Output</div>
+                <div class="control-row">
+                    <div class="input-group">
+                        <label>Input Source</label>
+                        <div class="input-wrapper">
+                            <input type="text" id="inputPath" placeholder="Select Folder..." readonly>
+                            <button class="icon-btn" onclick="openExplorer('input')">📂</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="control-row">
+                    <div class="input-group">
+                        <label>Output Destination</label>
+                        <div class="input-wrapper">
+                            <input type="text" id="outputPath" placeholder="Select Folder..." readonly>
+                            <button class="icon-btn" onclick="openExplorer('output')">📂</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <details class="accordion" open>
+                <summary>Light & Color <span class="arrow">▼</span></summary>
+                <div class="accordion-content">
+                    <div class="slider-group">
+                        <div class="slider-header"><label>Exposure</label><span id="val_exposure">0</span></div>
+                        <input type="range" class="param" id="exposure" min="-2" max="2" step="0.1" value="0">
+                    </div>
+                    <div class="slider-group">
+                        <div class="slider-header"><label>Contrast</label><span id="val_contrast">1.0</span></div>
+                        <input type="range" class="param" id="contrast" min="0.5" max="1.5" step="0.1" value="1.0">
+                    </div>
+                    <div class="slider-group">
+                        <div class="slider-header"><label>Saturation</label><span id="val_saturation">1.0</span></div>
+                        <input type="range" class="param" id="saturation" min="0" max="2.0" step="0.1" value="1.0">
+                    </div>
+                    <div class="slider-group">
+                        <div class="slider-header"><label>Temperature</label><span id="val_temperature">0</span></div>
+                        <input type="range" class="param" id="temperature" min="-50" max="50" step="1" value="0">
+                    </div>
+                    <button class="btn-text" onclick="resetParams()">Reset Color</button>
+                </div>
+            </details>
+
+            <details class="accordion">
+                <summary>Effects & Detail <span class="arrow">▼</span></summary>
+                <div class="accordion-content">
+                    <div class="checkbox-row">
+                        <label for="bw">Black & White</label>
+                        <input type="checkbox" class="param-check" id="bw">
+                    </div>
+                    <div class="slider-group">
+                        <div class="slider-header"><label>Sharpness</label><span id="val_sharpness">1.0</span></div>
+                        <input type="range" class="param" id="sharpness" min="0" max="3.0" step="0.1" value="1.0">
+                    </div>
+                    <div class="slider-group">
+                        <div class="slider-header"><label>Vignette</label><span id="val_vignette">0</span></div>
+                        <input type="range" class="param" id="vignette" min="0" max="100" value="0">
+                    </div>
+                    <div class="slider-group">
+                        <div class="slider-header"><label>Blur</label><span id="val_blur">0</span></div>
+                        <input type="range" class="param" id="blur" min="0" max="5" step="0.5" value="0">
+                    </div>
+                    <div class="slider-group">
+                        <div class="slider-header"><label>Rotation (°)</label><span id="val_rotate">0</span></div>
+                        <input type="range" class="param" id="rotate" min="-45" max="45" step="1" value="0">
+                    </div>
+                </div>
+            </details>
+
+            <details class="accordion">
+                <summary>Watermark <span class="arrow">▼</span></summary>
+                <div class="accordion-content">
+                    <div class="wm-manager">
+                        <div class="wm-grid" id="wm-list-container"></div>
+                        <div class="wm-actions">
+                            <input type="file" id="wmFile" hidden onchange="uploadWm()">
+                            <button class="btn btn-sm" onclick="document.getElementById('wmFile').click()">+ Add</button>
+                            <button class="btn btn-sm" onclick="refreshWmList()">↻</button>
+                        </div>
+                        <input type="hidden" id="wm_filename">
+                    </div>
+
+                    <div class="slider-group">
+                        <div class="slider-header"><label>Opacity</label><span id="val_wm_opacity">100%</span></div>
+                        <input type="range" class="param" id="wm_opacity" min="10" max="100" value="100">
+                    </div>
+                    <div class="slider-group">
+                        <div class="slider-header"><label>Scale</label><span id="val_wm_scale">20%</span></div>
+                        <input type="range" class="param" id="wm_scale" min="1" max="100" value="20">
+                    </div>
+
+                    <div class="position-control">
+                        <div class="pos-grid">
+                            <div class="pos-cell" data-pos="nw" onclick="setPos('nw', this)"></div>
+                            <div class="pos-cell" data-pos="n" onclick="setPos('n', this)"></div>
+                            <div class="pos-cell" data-pos="ne" onclick="setPos('ne', this)"></div>
+                            <div class="pos-cell" data-pos="w" onclick="setPos('w', this)"></div>
+                            <div class="pos-cell" data-pos="c" onclick="setPos('c', this)"></div>
+                            <div class="pos-cell" data-pos="e" onclick="setPos('e', this)"></div>
+                            <div class="pos-cell" data-pos="sw" onclick="setPos('sw', this)"></div>
+                            <div class="pos-cell" data-pos="s" onclick="setPos('s', this)"></div>
+                            <div class="pos-cell active" data-pos="se" onclick="setPos('se', this)"></div>
+                        </div>
+                        <div class="pos-offsets">
+                            <div class="slider-group compact">
+                                <label>X</label>
+                                <input type="range" class="param" id="wm_off_x" min="0" max="200" value="30">
+                            </div>
+                            <div class="slider-group compact">
+                                <label>Y</label>
+                                <input type="range" class="param" id="wm_off_y" min="0" max="200" value="30">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </details>
+
+        </aside>
+
+        <main class="main-area" id="mainArea">
+            <div class="toolbar-overlay">
+                <button onclick="resetView()" title="Fit to Screen">Fit</button>
+                <button onclick="zoomOut()" title="Zoom Out">-</button>
+                <span id="zoom-level">100%</span>
+                <button onclick="zoomIn()" title="Zoom In">+</button>
+            </div>
+            
+            <div class="image-wrapper" id="imageWrapper">
+                <img id="preview-img" src="" alt="No Image Selected">
+            </div>
+            
+            <div class="empty-state" id="emptyState">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#444" stroke-width="1"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                <p>Select an Input Folder to Start</p>
+                <button class="btn btn-primary" onclick="openExplorer('input')">Browse Folder</button>
+            </div>
+        </main>
+
+        <aside class="right-panel">
+            <div class="panel-header">
+                <span>Files</span>
+                <span id="file-count" class="badge">0</span>
+            </div>
+            <div class="gallery-grid" id="gallery-list">
+                </div>
+        </aside>
+
+    </div>
+
+    <div id="explorer-modal" class="modal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3>Select Directory</h3>
+                <button class="close-btn" onclick="closeModal('explorer-modal')">×</button>
+            </div>
+            <div class="modal-body">
+                <div id="file-list" class="file-browser"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('explorer-modal')">Cancel</button>
+                <button class="btn btn-primary" onclick="selectFolder()">Select This Folder</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="process-modal" class="modal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3>Export Settings</h3>
+                <button class="close-btn" onclick="closeModal('process-modal')">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Format</label>
+                    <div class="select-wrapper">
+                        <select id="export_fmt">
+                            <option value="JPEG">JPEG (Standard)</option>
+                            <option value="PNG">PNG (Lossless)</option>
+                            <option value="WEBP">WEBP (Efficient)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Quality (<span id="lbl_qual">90</span>%)</label>
+                    <input type="range" id="export_qual" min="10" max="100" value="90" oninput="document.getElementById('lbl_qual').innerText=this.value">
+                </div>
+                <div class="form-group">
+                    <label>Resize Width (px)</label>
+                    <input type="number" id="export_resize" value="0" placeholder="0 = Original Size">
+                </div>
+                <div class="radio-group">
+                    <label class="radio-card">
+                        <input type="radio" name="proc_mode" value="all" checked>
+                        <span>Batch Process</span>
+                        <small>Export all files in folder</small>
+                    </label>
+                    <label class="radio-card">
+                        <input type="radio" name="proc_mode" value="current">
+                        <span>Current File</span>
+                        <small>Export only active image</small>
+                    </label>
+                </div>
+                <div class="checkbox-row warning">
+                    <input type="checkbox" id="chk_delete"> 
+                    <label for="chk_delete">Delete original files after export</label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('process-modal')">Cancel</button>
+                <button class="btn btn-primary" id="btn-start-process" onclick="startProcess()">Start Export</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

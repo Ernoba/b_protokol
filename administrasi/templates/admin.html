@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<body>
+    <h1>Halaman Admin (ACC Nama)</h1>
+    <a href="/upload_page">Pergi ke Upload Foto >></a>
+    <hr>
+    <table border="1">
+        <thead>
+            <tr>
+                <th>Nama</th>
+                <th>Alamat</th>
+                <th>Aksi</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for t in tamu %}
+            <tr>
+                <td>{{ t.nama }}</td>
+                <td>{{ t.alamat }}</td>
+                <td>
+                    <a href="/approve/{{ t.id }}">ACC (Buat Folder)</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

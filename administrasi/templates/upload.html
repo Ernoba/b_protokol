@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<body>
+    <h1>Upload Foto ke Folder Peserta</h1>
+    <p>Drag file foto (bisa banyak sekaligus) ke kotak nama di bawah ini.</p>
+    <a href="/admin">Kembali ke Admin</a>
+    <hr>
+
+    <div id="container">
+        {% for f in folders %}
+        <div style="border: 2px solid black; padding: 20px; margin-bottom: 10px; width: 300px;" 
+             ondrop="dropHandler(event, '{{ f }}')" 
+             ondragover="dragOverHandler(event)">
+            <h3>Folder: {{ f }}</h3>
+            <p>Geser foto ke sini...</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    <script>
+        function dragOverHandler(ev) {
+            ev.preventDefault();
+        }
+
+        function dropHandler(ev, folderName) {
+            ev.preventDefault();
+            
+            // Ambil file yang didrop
+            var files = ev.dataTransfer.files;
+            var formData = new FormData();
+            
+            for (var i = 0; i < files.length; i++) {
+                formData.append('files[]', files[i]);
+            }
+
+            // Kirim ke server
+            fetch('/upload_process/' + folderName, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert('Foto berhasil masuk ke folder: ' + folderName);
+            })
+            .catch(error => console.error('Error:', error));
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+[
+    {
+        "id": 1,
+        "nama": "Adinda",
+        "alamat": "ngrampal",
+        "status": "approved",
+        "folder": "ADINDA"
+    },
+    {
+        "id": 2,
+        "nama": "andika",
+        "alamat": "remabng",
+        "status": "approved",
+        "folder": "ANDIKA"
+    }
+]

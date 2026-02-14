@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<body>
+    <h1>Cari Foto Anda</h1>
+    <a href="/">Kembali ke Home</a>
+    <br><br>
+    
+    <form method="GET">
+        <input type="text" name="cari" placeholder="Ketik Nama Anda...">
+        <button type="submit">Cari Folder</button>
+    </form>
+    <hr>
+
+    {% if folder %}
+        <h2>Isi Folder: {{ folder }}</h2>
+        
+        {% for file in files %}
+            <div style="margin-bottom: 20px;">
+                <img src="/static/uploads/{{ folder }}/{{ file }}" width="200"><br>
+                
+                <a href="/static/uploads/{{ folder }}/{{ file }}" download>
+                    <button>Download Foto Ini</button>
+                </a>
+            </div>
+        {% endfor %}
+
+    {% else %}
+        <p>Folder tidak ditemukan atau belum dibuat.</p>
+    {% endif %}
+</body>
+</html>
