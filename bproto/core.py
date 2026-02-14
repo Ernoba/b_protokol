@@ -14,10 +14,20 @@ from .config import *
 from .utils import SystemUtils
 
 class BProto:
-    def __init__(self, device_name=None, secret=DEFAULT_SECRET, save_dir=DEFAULT_SAVE_DIR):
+    def __init__(self, device_name=None, secret=DEFAULT_SECRET, save_dir=DEFAULT_SAVE_DIR, port=None):
         self.name = device_name if device_name else socket.gethostname()
         self.secret = secret
         self.save_dir = os.path.abspath(save_dir)
+        
+        # LOGIKA BARU:
+        # Jika port ditentukan (misal oleh Server), pakai itu.
+        # Jika tidak (misal oleh Client), pakai 0 (biarkan OS pilih port acak yang kosong)
+        if port is not None:
+            self.tcp_port = port
+        else:
+            self.tcp_port = 0  # 0 artinya "Minta OS kasih port berapapun yang kosong"
+            
+        self.running = False
         
         # GANTI INI: Gunakan port tetap dari config
         try:

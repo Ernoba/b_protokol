@@ -26,7 +26,8 @@ STATE = {
 }
 
 # Init BProto
-STATE["client"] = BProto(device_name="Ernoba-Photobooth")
+# JANGAN masukkan parameter port (biarkan default None -> jadi 0/Random)
+STATE["client"] = BProto(device_name="Ernoba-Photobooth-Client") 
 STATE["client"].start()
 
 def add_log(msg, type="info"):
@@ -113,7 +114,7 @@ if __name__ == "__main__":
         s.connect(('8.8.8.8', 80))
         my_ip = s.getsockname()[0]
         s.close()
-        print(f"\n🚀 ERNOBA PHOTOBOOTH WEB: http://{my_ip}:7002\n")
-        app.run(host='0.0.0.0', port=7002, debug=False)
+        print(f"\n🚀 ERNOBA PHOTOBOOTH WEB: http://{my_ip}:5000\n")
+        app.run(host='0.0.0.0', port=5000, debug=False)
     except:
         STATE["client"].stop()
