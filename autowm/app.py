@@ -18,17 +18,77 @@ CACHE = {
 WM_FOLDER = 'watermarks'
 if not os.path.exists(WM_FOLDER):
     os.makedirs(WM_FOLDER)
+    
+# --- Tambahkan Fungsi Helper Crop ini di atas apply_adjustments ---
+def apply_crop(img, config):
+    ratio_str = config.get('aspect_ratio', 'original')
+    if not ratio_str or ratio_str == 'original':
+        return img
+    
+    w, h = img.size
+    current_ratio = w / h
+    target_ratio = 1.0
+
+    # Parsing Ratio String (e.g., "4:5")
+    try:
+        if ':' in ratio_str:
+            num, den = map(float, ratio_str.split(':'))
+            target_ratio = num / den
+        else:
+            return img
+    except:
+        return img
+
+    # Hitung Ukuran Baru (Tanpa Distorsi)
+    new_w, new_h = w, h
+    if current_ratio > target_ratio:
+        # Gambar terlalu lebar -> Potong lebar (Kiri/Kanan)
+        new_w = int(h * target_ratio)
+    else:
+        # Gambar terlalu tinggi -> Potong tinggi (Atas/Bawah)
+        new_h = int(w / target_ratio)
+
+    # --- LOGIKA POSISI CROP (BARU) ---
+    # Ambil nilai slider (0 - 100), default 50 (tengah)
+    pos_x = int(config.get('crop_pos_x', 50))
+    pos_y = int(config.get('crop_pos_y', 50))
+
+    # Hitung sisa ruang (margin) yang akan dibuang
+    margin_x = w - new_w
+    margin_y = h - new_h
+
+    # Hitung koordinat awal (x, y) berdasarkan persentase slider
+    # Jika slider 0 = 0px
+    # Jika slider 100 = margin maksimal
+    start_x = int(margin_x * (pos_x / 100.0))
+    start_y = int(margin_y * (pos_y / 100.0))
+
+    # Pastikan tidak keluar batas (clamping)
+    start_x = max(0, min(start_x, w - new_w))
+    start_y = max(0, min(start_y, h - new_h))
+
+    # Lakukan Crop
+    return img.crop((start_x, start_y, start_x + new_w, start_y + new_h))
 
 # --- IMAGE LOGIC ---
 def apply_adjustments(img, config):
     img = img.convert("RGBA")
     
-    # 1. ROTATION (Putar dulu sebelum crop/color)
+    # 0. ROTASI 90 DERAJAT (Fitur Baru)
+    # Kita putar base dulu sebelum rotasi halus
+    rotate_base = int(config.get('rotate_base', 0))
+    if rotate_base != 0:
+        # expand=True agar gambar tidak terpotong saat diputar 90 derajat
+        img = img.rotate(-rotate_base, resample=Image.BICUBIC, expand=True)
+
+    # 1. ROTATION HALUS (Slider)
     rotate = float(config.get('rotate', 0))
     if rotate != 0:
-        # expand=False agar ukuran canvas tetap (crop bagian luar)
-        # resample=Image.BICUBIC agar hasil putar halus
         img = img.rotate(-rotate, resample=Image.BICUBIC, expand=False)
+
+    # 1.5 CROP RATIO (Fitur Baru - Diletakkan setelah rotasi)
+    ratio = config.get('aspect_ratio', 'original')
+    img = apply_crop(img, config)
 
     # 2. BLACK & WHITE
     if config.get('bw', 'false') == 'true':

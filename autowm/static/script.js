@@ -52,6 +52,11 @@ function setupEventListeners() {
     els.mainArea.addEventListener('mousedown', startPan);
     window.addEventListener('mouseup', endPan);
     window.addEventListener('mousemove', handlePan);
+
+    // Tambahan: Listener untuk Select Dropdown (Aspect Ratio)
+    document.querySelectorAll('.param-select').forEach(el => {
+        el.addEventListener('change', triggerPreview);
+    });
 }
 
 /* --- PREVIEW LOGIC --- */
@@ -80,27 +85,61 @@ function triggerPreview() {
 function getConfig() {
     const config = { 
         wm_position: state.selectedPos,
-        wm_filename: document.getElementById('wm_filename').value 
+        wm_filename: document.getElementById('wm_filename').value,
+        // Ambil nilai rotasi 90 derajat
+        rotate_base: document.getElementById('rotate_base') ? document.getElementById('rotate_base').value : 0,
+        // Ambil nilai aspect ratio
+        aspect_ratio: document.getElementById('aspect_ratio') ? document.getElementById('aspect_ratio').value : 'original'
     };
+
     document.querySelectorAll('.param').forEach(el => config[el.id] = el.value);
     document.querySelectorAll('.param-check').forEach(el => config[el.id] = el.checked ? 'true' : 'false');
+    
     return config;
 }
 
+function rotate90(deg) {
+    const input = document.getElementById('rotate_base');
+    let current = parseInt(input.value) || 0;
+    
+    // Tambah rotasi
+    current += deg;
+    
+    // Normalisasi agar tetap dalam lingkup 0-360 (opsional, tapi rapi)
+    // current = current % 360; 
+    
+    input.value = current;
+    triggerPreview();
+}
+
 function resetParams() {
-    // Set default values
     const defaults = {
-        exposure: 0, contrast: 1.0, saturation: 1.0, temperature: 0
+        exposure: 0, contrast: 1.0, saturation: 1.0, temperature: 0,
+        rotate: 0, sharpness: 1.0, blur: 0, vignette: 0,
+        // TAMBAHKAN INI:
+        crop_pos_x: 50, 
+        crop_pos_y: 50
     };
     
+    // Reset Sliders Standard
     for (const [key, val] of Object.entries(defaults)) {
         const el = document.getElementById(key);
         if(el) {
             el.value = val;
             const label = document.getElementById('val_' + key);
-            if(label) label.innerText = val;
+            // Tambahkan % jika itu slider posisi
+            if(key.includes('crop_pos')) {
+                if(label) label.innerText = val + "%";
+            } else {
+                if(label) label.innerText = val;
+            }
         }
     }
+
+    // Reset Dropdown & Hidden Input
+    if(document.getElementById('rotate_base')) document.getElementById('rotate_base').value = 0;
+    if(document.getElementById('aspect_ratio')) document.getElementById('aspect_ratio').value = 'original';
+
     triggerPreview();
 }
 
