@@ -44,13 +44,17 @@ def process_and_send(filepath, filename):
 
     time.sleep(0.5) # UI effect delay
     add_log(f"Mengirim: {filename} -> {target}...", "info")
-    try:
-        STATE["client"].send_file(target, filepath)
+    
+    # Kirim file
+    sukses = STATE["client"].send_file(target, filepath)
+    
+    if sukses:
         add_log(f"✅ Terkirim: {filename}", "success")
         try: os.remove(filepath)
         except: pass
-    except Exception as e:
-        add_log(f"❌ Gagal: {filename} - {str(e)}", "error")
+    else:
+        # Error detail sudah dicetak oleh bproto ke console/log server
+        add_log(f"❌ Gagal mengirim: {filename} (Cek koneksi/Firewall)", "error")
 
 # --- ROUTES ---
 @app.route('/')

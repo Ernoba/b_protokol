@@ -18,7 +18,13 @@ class BProto:
         self.name = device_name if device_name else socket.gethostname()
         self.secret = secret
         self.save_dir = os.path.abspath(save_dir)
-        self.tcp_port = SystemUtils.get_free_tcp_port()
+        
+        # GANTI INI: Gunakan port tetap dari config
+        try:
+            self.tcp_port = TCP_PORT 
+        except NameError:
+            self.tcp_port = 7002 # Fallback jika config belum update
+        
         self.running = False
         
         # Peer Discovery Data
@@ -109,8 +115,8 @@ class BProto:
     def send_file(self, target_ip, filepath):
         if target_ip not in self.peers: 
             self.events["error"]("Target IP not found in peers list")
-            return
-        
+            return False  # <--- Return False
+
         is_zip = False
         final_path = filepath
         if os.path.isdir(filepath):
@@ -124,12 +130,13 @@ class BProto:
             filesize = os.path.getsize(final_path)
         except FileNotFoundError:
             self.events["error"]("File not found")
-            return
+            return False # <--- Return False
 
         target_port = self.peers[target_ip]['port']
 
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
+            s.settimeout(10)
             s.connect((target_ip, target_port))
             
             # Init Header
@@ -181,9 +188,11 @@ class BProto:
                     self.events["progress"](filename, (sent/filesize)*100, mbps)
             
             self.events["log"](f"Transfer Complete: {filename}")
+            return True # <--- TAMBAHKAN INI (Sukses)
 
         except Exception as e:
             self.events["error"](f"Send Error: {e}")
+            return False # <--- TAMBAHKAN INI (Gagal)
         finally:
             s.close()
             if is_zip and os.path.exists(final_path): os.remove(final_path)
