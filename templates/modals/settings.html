@@ -1,0 +1,43 @@
+<div class="modal" id="settingsModal">
+    <div class="modal-content">
+        <h3 style="margin-top:0;">Konfigurasi Server</h3>
+        <div style="margin:20px 0;">
+            <label style="display:block; text-align:left; font-size:0.85rem; color:#666; margin-bottom:5px;">IP Address Python Server:</label>
+            <input type="text" id="serverIpInput" placeholder="Contoh: 192.168.1.5" 
+                   style="width:100%; padding:12px; border:1px solid #ddd; border-radius:10px; font-size:1rem; outline:none;">
+            <p style="font-size:0.75rem; color:#999; text-align:left; margin-top:5px;">
+                *Cek log di terminal server.py untuk melihat IP.
+            </p>
+        </div>
+        <div style="display:flex; gap:10px;">
+            <button onclick="document.getElementById('settingsModal').style.display='none'" 
+                    style="flex:1; padding:12px; border:none; background:#eee; border-radius:10px; cursor:pointer;">
+                Batal
+            </button>
+            <button onclick="saveSettings()" 
+                    class="btn-main" 
+                    style="flex:1; padding:12px; border:none; background:var(--primary); color:white; border-radius:10px; cursor:pointer;">
+                Simpan
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    function saveSettings() {
+        const ip = document.getElementById('serverIpInput').value.trim();
+        if(!ip) return alert("IP tidak boleh kosong");
+        
+        // Panggil fungsi global dari app.js
+        updateServerIp(ip).then(() => {
+            document.getElementById('settingsModal').style.display = 'none';
+        });
+    }
+    
+    // Auto-fill saat modal dibuka (opsional)
+    document.getElementById('settingsModal').addEventListener('click', (e) => {
+        if(e.target === document.getElementById('settingsModal')) {
+            document.getElementById('settingsModal').style.display = 'none';
+        }
+    });
+</script>

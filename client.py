@@ -6,27 +6,25 @@ import socket
 from flask import Flask, render_template, jsonify, request
 from werkzeug.utils import secure_filename
 
-# Import library bproto Anda
+# Import library bproto
 from bproto import BProto
 
 app = Flask(__name__, template_folder='templates')
 
-# Konfigurasi Folder
 UPLOAD_FOLDER = 'temp_uploads'
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-# State Global
 STATE = {
     "client": None,
     "target_ip": None,
     "logs": []
 }
 
-# Init BProto
-# JANGAN masukkan parameter port (biarkan default None -> jadi 0/Random)
+# Init BProto Client
+# V2 Logic: Port 0/None otomatis dihandle di core.py
 STATE["client"] = BProto(device_name="Ernoba-Photobooth-Client") 
 STATE["client"].start()
 
@@ -43,10 +41,10 @@ def process_and_send(filepath, filename):
         add_log(f"Tertunda: {filename} (Server belum diset!)", "error")
         return
 
-    time.sleep(0.5) # UI effect delay
+    time.sleep(0.5)
     add_log(f"Mengirim: {filename} -> {target}...", "info")
     
-    # Kirim file
+    # Fungsi send_file di V2 sama persis panggilannya
     sukses = STATE["client"].send_file(target, filepath)
     
     if sukses:
@@ -54,8 +52,7 @@ def process_and_send(filepath, filename):
         try: os.remove(filepath)
         except: pass
     else:
-        # Error detail sudah dicetak oleh bproto ke console/log server
-        add_log(f"❌ Gagal mengirim: {filename} (Cek koneksi/Firewall)", "error")
+        add_log(f"❌ Gagal mengirim: {filename} (Auth/Koneksi Gagal)", "error")
 
 # --- ROUTES ---
 @app.route('/')
@@ -64,8 +61,9 @@ def index():
 
 @app.route('/api/scan')
 def api_scan():
-    STATE["client"].scan()
-    time.sleep(1.0) 
+    STATE["client"].scan() # Memanggil Discovery Module
+    time.sleep(1.0)
+    # STATE["client"].peers terhubung langsung ke DiscoveryManager.peers
     return jsonify(STATE["client"].peers)
 
 @app.route('/api/set_server', methods=['POST'])
@@ -73,17 +71,16 @@ def api_set_server():
     data = request.json
     ip = data.get('ip')
     
-    # Validasi
     if not ip or len(ip.split('.')) != 4:
         return jsonify({"status": "error", "message": "Format IP Salah"}), 400
         
     STATE["target_ip"] = ip
 
-    # --- TAMBAHAN KODE (CRITICAL FIX) ---
-    # Kita paksa masukkan IP ini ke dalam "buku telepon" (peers) bproto.
-    # Kita asumsikan Server pasti berjalan di port 7002.
+    # Manual Injection tetap berfungsi di V2
     STATE["client"].peers[ip] = {"name": "Manual-Server", "port": 7002} 
-    # ------------------------------------
+    
+    # [OPSIONAL] Test Kirim Pesan Chat (Fitur Baru V2)
+    # STATE["client"].send_message(ip, "Client Photobooth Terhubung!") 
     
     add_log(f"🔗 Target Server manual: {ip} (Port 7002)", "success")
     return jsonify({"status": "ok", "target": ip})

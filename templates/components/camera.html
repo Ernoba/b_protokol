@@ -1,0 +1,48 @@
+<div class="page page-camera">
+    <div class="camera-header">
+        <div class="icon-btn" onclick="document.getElementById('settingsModal').style.display = 'flex'">
+            <i class="fas fa-cog"></i>
+        </div>
+        <div style="background:rgba(255,255,255,0.9); padding:5px 15px; border-radius:20px; font-weight:700; font-size:0.85rem;">
+            ERNOBA
+        </div>
+        <div class="icon-btn" id="connIcon" style="background: #ff4757;">
+            <i class="fas fa-wifi"></i>
+        </div>
+    </div>
+
+    <div class="video-container">
+        <video id="videoFeed" autoplay playsinline muted></video>
+        
+        <div id="countdownDisplay" style="position: absolute; font-size:8rem; color:white; font-weight:800; display:none; text-shadow: 0 5px 20px rgba(0,0,0,0.5); z-index: 50;">
+            3
+        </div>
+
+        <div style="position:absolute; bottom:140px; z-index:30;">
+            <button id="lensToggleBtn" onclick="cycleBackLens()" style="background:rgba(0,0,0,0.6); color:white; border:1px solid rgba(255,255,255,0.4); padding:8px 16px; border-radius:20px; display:none; cursor:pointer;">
+                <i class="fas fa-circle-notch"></i> Ganti Lensa
+            </button>
+        </div>
+    </div>
+
+    <div style="position:absolute; left:20px; top:50%; transform:translateY(-50%); color:rgba(255,255,255,0.5); z-index:10; cursor:pointer;" onclick="slide(0)">
+        <i class="fas fa-chevron-left fa-2x"></i>
+    </div>
+    <div style="position:absolute; right:20px; top:50%; transform:translateY(-50%); color:rgba(255,255,255,0.5); z-index:10; cursor:pointer;" onclick="slide(2)">
+        <i class="fas fa-images fa-2x"></i>
+    </div>
+
+    <div class="camera-controls">
+        <div class="icon-btn" onclick="toggleCameraMode()">
+            <i class="fas fa-sync-alt"></i>
+        </div>
+        
+        <div class="shutter-outer" onclick="startCaptureSequence()">
+            <div class="shutter-inner"></div>
+        </div>
+
+        <div class="icon-btn" onclick="toggleTimer()" id="timerBtn" style="font-weight:bold; font-size:0.8rem;">
+            OFF
+        </div>
+    </div>
+</div>

@@ -1,0 +1,40 @@
+/* static/css/animations.css */
+
+/* Animasi Masuk Toast & Card */
+@keyframes slideDown {
+    from { transform: translateY(-20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes popIn {
+    0% { transform: scale(0.8); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+/* Animasi Loading Spinner */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.fa-spin {
+    animation: spin 1s linear infinite;
+}
+
+/* Transisi Halaman */
+.main-container {
+    will-change: transform; /* Optimasi performa HP */
+}
+
+/* Efek tombol tekan */
+.icon-btn:active, .btn-main:active {
+    transform: scale(0.95);
+    transition: transform 0.1s;
+}
+
+/* Flash Kamera */
+.flash-overlay {
+    position: fixed; inset: 0; background: white;
+    opacity: 0; pointer-events: none; z-index: 100; 
+    transition: opacity 0.1s ease-out;
+}
