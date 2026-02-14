@@ -25,7 +25,13 @@ STATE = {
 }
 
 # Init BProto
-STATE["client"] = BProto(device_name="Ernoba-Photobooth-Client") 
+# Init BProto
+# Kita paksa secret sama dengan server ("ernoba-root")
+STATE["client"] = BProto(
+    device_name="Ernoba-Photobooth-Client", 
+    secret="ernoba-root"  # <--- TAMBAHKAN INI
+)
+
 STATE["client"].start()
 
 def add_log(msg, type="info"):
