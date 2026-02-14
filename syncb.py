@@ -1,4 +1,4 @@
-# syncb.py (Versi Final: Fixed WebSocket Check)
+# syncb.py (Versi Final: Strict Port Check)
 import sys
 import os
 import time
@@ -32,11 +32,15 @@ WEB_PORT = 8080
 SYNC_PORT = 7002
 SYNC_CMD_DELETE = "SYNC_DELETE"
 
-# --- HELPER: CEK PORT (TCP & WebSocket) ---
+# --- HELPER: CEK PORT (STRICT MODE) ---
 def is_port_free(port):
+    """
+    Mengecek ketersediaan port secara KETAT.
+    Tidak menggunakan SO_REUSEADDR agar mendeteksi port 'zombie' sebagai SIBUK.
+    """
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        # KITA HAPUS REUSEADDR AGAR PENGECEKAN LEBIH JUJUR
         sock.bind(('0.0.0.0', port))
         sock.close()
         return True
@@ -45,38 +49,35 @@ def is_port_free(port):
 
 def ask_valid_sync_port(start_port):
     """
-    Khusus untuk BProto: Harus memastikan Port Utama DAN Port+100 (WS) kosong.
+    Memastikan Port Utama (TCP) DAN Port WebSocket (TCP+100) benar-benar kosong.
     """
     port = start_port
     while True:
         ws_port = port + 100
         
-        # Cek Port Utama & Port WS
         main_free = is_port_free(port)
         ws_free = is_port_free(ws_port)
 
         if main_free and ws_free:
             return port
         
-        # Jika salah satu sibuk, lapor ke user
-        print(f"\n[!] Konflik Port Terdeteksi:")
+        print(f"\n[!] GANGGUAN PORT TERDETEKSI:")
         if not main_free:
-            print(f"    - Port Utama TCP ({port}) sedang SIBUK.")
+            print(f"    - Port Utama TCP ({port}) -> SIBUK/TERPAKAI")
         if not ws_free:
-            print(f"    - Port WebSocket ({ws_port}) sedang SIBUK.")
+            print(f"    - Port WebSocket ({ws_port}) -> SIBUK/TERPAKAI")
             
-        print("    (BProto membutuhkan 2 port: N dan N+100)")
+        print("    (Tips: Matikan terminal python lain atau pilih port berbeda)")
         
         try:
-            # Saran port berikutnya yang aman (lompat 1 angka)
             suggestion = port + 1
-            new_input = input(f"    >>> Masukkan Port TCP baru (rekomendasi: {suggestion}): ")
+            new_input = input(f"    >>> Masukkan Port Baru (rekomendasi: {suggestion}): ")
             if not new_input.strip(): 
-                port = suggestion # Jika user enter saja, pakai rekomendasi
+                port = suggestion
             else:
                 port = int(new_input)
         except ValueError:
-            print("    [!] Harap masukkan angka yang valid.")
+            print("    [!] Harap masukkan angka.")
 
 def ask_valid_web_port(start_port):
     port = start_port
@@ -232,6 +233,7 @@ class SyncWebHandler(http.server.SimpleHTTPRequestHandler):
 
 def run_web_server():
     try:
+        # Untuk Web kita biarkan Reuse Address agar user nyaman saat refresh
         socketserver.TCPServer.allow_reuse_address = True
         server = socketserver.TCPServer(("", WEB_PORT), SyncWebHandler)
         server.serve_forever()
@@ -398,10 +400,10 @@ if __name__ == "__main__":
 
     print("--- KONFIGURASI PORT ---")
     
-    # 1. Validasi Port Sync (BProto & WS) - FIX: Cek N dan N+100
+    # 1. Validasi Port Sync (BProto & WS)
     SYNC_PORT = ask_valid_sync_port(port_arg)
     
-    # 2. Validasi Port Web - INTERAKTIF
+    # 2. Validasi Port Web
     WEB_PORT = ask_valid_web_port(8080)
     
     print("------------------------")
