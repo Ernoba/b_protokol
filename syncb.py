@@ -1,4 +1,4 @@
-# syncb.py (Versi V4: ISOLATED NETWORK / ANTI-CONFLICT)
+# syncb.py (Versi V5: FIX PORT & WEB UI)
 import sys
 import os
 import time
@@ -17,7 +17,6 @@ try:
     from watchdog.events import FileSystemEventHandler
 except ImportError:
     print("Error: Library 'watchdog' belum terinstall.")
-    print("Silahkan jalankan: pip install watchdog")
     sys.exit(1)
 
 # Import BProto
@@ -29,11 +28,12 @@ except ImportError:
 
 # --- KONFIGURASI GLOBAL ---
 WEB_PORT = 8080
-SYNC_PORT = 7002
+# [FIX 1] Ganti Port Default ke 7003 agar tidak bentrok dengan Photobooth (7002)
+SYNC_PORT = 7003 
 SYNC_CMD_DELETE = "SYNC_DELETE"
 
 # --- RAHASIA (SECRET) KHUSUS ---
-# Ini kuncinya! Jangan gunakan "ernoba-root" agar tidak bentrok dengan PhotoBooth
+# Pastikan ini BEDA dengan server.py ("ernoba-root")
 SYNC_SECRET_KEY = "folder-sync-private-key-v1" 
 
 # --- HELPER: CEK PORT ---
@@ -57,7 +57,7 @@ def ask_valid_sync_port(start_port):
             return port
         
         print(f"\n[!] GANGGUAN PORT TERDETEKSI:")
-        if not main_free: print(f"    - TCP {port} SIBUK (Mungkin dipakai aplikasi lain)")
+        if not main_free: print(f"    - TCP {port} SIBUK (Mungkin dipakai Server Photobooth?)")
         if not ws_free: print(f"    - WS {ws_port} SIBUK")
             
         try:
@@ -169,11 +169,12 @@ class SyncWebHandler(http.server.SimpleHTTPRequestHandler):
 
         log_rows = "\n".join(STATE.logs[-10:])
 
+        # [FIX 2] Menggunakan JavaScript untuk Refresh (Smart Reload)
+        # Halaman hanya akan refresh jika user TIDAK sedang mengetik di input box.
         html = f"""
         <html>
         <head>
             <title>BProto Sync</title>
-            <meta http-equiv="refresh" content="5">
             <style>
                 body {{ font-family: monospace; max-width: 800px; margin: 0 auto; padding: 20px; background: #f4f4f4; }}
                 h1 {{ color: #333; border-bottom: 2px solid #333; padding-bottom: 10px; }}
@@ -184,23 +185,37 @@ class SyncWebHandler(http.server.SimpleHTTPRequestHandler):
                 button {{ padding: 8px 15px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 3px; }}
                 button:hover {{ background: #0056b3; }}
                 input {{ padding: 5px; }}
+                .status-ok {{ color: green; font-weight: bold; }}
+                .status-warn {{ color: orange; font-weight: bold; }}
             </style>
+            <script>
+                // Script Anti-Gangguan Input
+                setInterval(function() {{
+                    // Cek apakah user sedang fokus di input text/number
+                    var active = document.activeElement;
+                    if (active.tagName !== "INPUT") {{
+                        location.reload(); 
+                    }} else {{
+                        console.log("User sedang mengetik, skip refresh...");
+                    }}
+                }}, 5000); // Refresh setiap 5 detik
+            </script>
         </head>
         <body>
-            <h1>⚡ BProto Secure Sync</h1>
+            <h1>⚡ BProto Sync Node</h1>
             
             <div class="card" style="background: #e8f4ff; border-color: #b6d4fe;">
-                <h3>🛡️ Isolasi Jaringan Aktif</h3>
-                <p>Node ini menggunakan <b>Secret Key Khusus</b>. Aplikasi lain (seperti PhotoBooth) 
-                tidak akan bisa mengirim file ke sini, dan sebaliknya.</p>
+                <h3>🛡️ Isolasi Jaringan</h3>
+                <p>Node ini berjalan di Port <b>{SYNC_PORT}</b> dengan kunci rahasia berbeda.
+                <br>Aman dijalankan bersamaan dengan Server Photobooth (Port 7002).</p>
             </div>
 
             <div class="card">
                 <h3>➕ Manual Connect</h3>
                 <form method="POST">
                     <input type="hidden" name="action" value="manual_add_peer">
-                    IP Lawan: <input type="text" name="target_ip" value="127.0.0.1" size="15">
-                    Port Lawan: <input type="number" name="target_port" placeholder="Contoh: 7002" size="10">
+                    IP Lawan: <input type="text" name="target_ip" value="127.0.0.1" size="15" placeholder="192.168.x.x">
+                    Port Lawan: <input type="number" name="target_port" value="7003" size="10">
                     <button type="submit">HUBUNGKAN</button>
                 </form>
             </div>
@@ -210,7 +225,7 @@ class SyncWebHandler(http.server.SimpleHTTPRequestHandler):
                 <table>
                     <tr><td width="30%">Device Name</td><td><b>{STATE.device_name}</b></td></tr>
                     <tr><td>Folder Path</td><td>{STATE.folder_path}</td></tr>
-                    <tr><td>YOUR PORT</td><td><b>TCP {SYNC_PORT}</b> / WS {SYNC_PORT+100}</td></tr>
+                    <tr><td>PORT (TCP/WS)</td><td><b>{SYNC_PORT}</b> / {SYNC_PORT+100}</td></tr>
                     <tr><td>Auto Sync</td><td>{'✅ ON' if STATE.config['auto_sync'] else '❌ OFF'}</td></tr>
                 </table>
                 <br>
@@ -221,7 +236,7 @@ class SyncWebHandler(http.server.SimpleHTTPRequestHandler):
             </div>
 
             <div class="card">
-                <h3>👥 Peers (Terhubung & Terpercaya)</h3>
+                <h3>👥 Peers (Terhubung)</h3>
                 <table>
                     <tr><th>Nama</th><th>Address</th><th>Last Seen</th></tr>
                     {peer_rows}
@@ -312,8 +327,8 @@ class BProtoSync:
         self.bp = BProto(
             save_dir=self.folder_path, 
             port=port,
-            device_name=f"SyncNode-{port}", # Nama unik
-            secret=SYNC_SECRET_KEY         # <--- KUNCI RAHASIA BEDA DARI PHOTOBOOTH
+            device_name=f"SyncNode-{port}",
+            secret=SYNC_SECRET_KEY
         )
         STATE.device_name = self.bp.name
         
@@ -329,7 +344,6 @@ class BProtoSync:
             if os.path.isfile(fp): self.loop_preventer.update_signature(fp)
 
     def manual_add_peer(self, ip, port):
-        # Inject ke internal BProto discovery peers
         self.bp.discovery.peers[ip] = {'name': 'ManualPeer', 'port': port}
         self._on_peer_found(ip, 'ManualPeer', port)
         STATE.add_log(f"System: Peer {ip}:{port} ditambahkan manual.")
@@ -348,8 +362,6 @@ class BProtoSync:
         print(f"[INFO] Node Berjalan TCP:{SYNC_PORT}, WS:{SYNC_PORT+100}")
         try:
             while True:
-                # Discovery scan masih jalan, tapi device lain yang kuncinya beda
-                # akan ditolak saat mencoba konek TCP.
                 self.bp.scan() 
                 time.sleep(5)
         except KeyboardInterrupt:
@@ -368,9 +380,8 @@ class BProtoSync:
 
     def _on_error(self, msg):
         if "UDP Bind failed" in msg: return 
-        # Filter error handshake failure yang mungkin terjadi jika PhotoBooth mencoba konek
         if "Authentication Failed" in msg or "Handshake GAGAL" in msg:
-            STATE.add_log(f"Security: Menolak koneksi dari aplikasi asing (Salah Kunci).")
+            STATE.add_log(f"Security: Menolak koneksi asing (Salah Kunci).")
             return
         STATE.add_log(f"Error: {msg}")
 
@@ -411,7 +422,8 @@ class BProtoSync:
 
 if __name__ == "__main__":
     folder_arg = "SyncFolder"
-    port_arg = 7002
+    # [FIX] Default port sekarang 7003
+    port_arg = 7003 
     if len(sys.argv) > 1: folder_arg = sys.argv[1]
     if len(sys.argv) > 2: port_arg = int(sys.argv[2])
 
