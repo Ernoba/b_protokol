@@ -18,53 +18,71 @@ async function requestCameraPermission() {
     } catch (e) { console.warn("Izin kamera belum ok"); }
 }
 
+// Ganti fungsi enumerateCameras agar lebih akurat
 async function enumerateCameras() {
     try {
         const devices = await navigator.mediaDevices.enumerateDevices();
         const videoDevices = devices.filter(d => d.kind === 'videoinput');
         
-        // Cari kamera belakang (environment)
-        backCameraList = videoDevices.filter(d => 
-            d.label.toLowerCase().includes('back') || 
-            d.label.toLowerCase().includes('rear') ||
-            d.label.toLowerCase().includes('environment')
-        ).map(d => d.deviceId);
+        // Bersihkan list sebelumnya
+        backCameraList = [];
 
-        // Fallback jika label tidak terdeteksi, ambil device terakhir
+        videoDevices.forEach(d => {
+            const label = d.label.toLowerCase();
+            if (label.includes('back') || label.includes('rear') || label.includes('environment')) {
+                backCameraList.push(d.deviceId);
+            }
+        });
+
+        // Fallback jika label kosong (masalah umum mobile)
         if (backCameraList.length === 0 && videoDevices.length > 1) {
-            backCameraList = [videoDevices[videoDevices.length - 1].deviceId];
+            // Biasanya kamera belakang ada di urutan terakhir atau setelah kamera 0
+            backCameraList = videoDevices.slice(1).map(d => d.deviceId);
         }
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error("Gagal enumerasi:", e); }
 }
 
 async function startCamera() {
-    if (stream) stream.getTracks().forEach(track => track.stop());
+    if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+    }
 
     const video = document.getElementById('videoFeed');
     const lensBtn = document.getElementById('lensToggleBtn');
-    let constraints = { audio: false };
+    
+    // Default constraints
+    let constraints = {
+        audio: false,
+        video: {
+            width: { ideal: 1920 },
+            height: { ideal: 1080 }
+        }
+    };
 
     if (isFrontCamera) {
-        constraints.video = { facingMode: 'user', width: { ideal: 1920 }, height: { ideal: 1080 } };
-        lensBtn.style.display = 'none';
+        constraints.video.facingMode = "user";
+        if(lensBtn) lensBtn.style.display = 'none';
     } else {
         if (backCameraList.length > 0) {
             const camId = backCameraList[currentBackCameraIndex];
-            constraints.video = { deviceId: { exact: camId }, width: { ideal: 1920 }, height: { ideal: 1080 } };
-            lensBtn.style.display = 'block';
-            lensBtn.innerHTML = `<i class="fas fa-circle-notch"></i> Lensa ${currentBackCameraIndex + 1}`;
+            constraints.video.deviceId = { ideal: camId }; // Gunakan ideal agar tidak crash
+            if(lensBtn) {
+                lensBtn.style.display = 'block';
+                lensBtn.innerHTML = `<i class="fas fa-circle-notch"></i> Lensa ${currentBackCameraIndex + 1}`;
+            }
         } else {
-            constraints.video = { facingMode: 'environment' };
-            lensBtn.style.display = 'none';
+            constraints.video.facingMode = "environment";
         }
     }
 
     try {
         stream = await navigator.mediaDevices.getUserMedia(constraints);
         video.srcObject = stream;
+        // Animasi mirror hanya untuk kamera depan
         video.style.transform = isFrontCamera ? "scaleX(-1)" : "none";
     } catch (err) {
-        showToast("Gagal akses kamera: " + err.message, 'error');
+        console.error(err);
+        showToast("Kamera tidak ditemukan atau akses ditolak.", 'error');
     }
 }
 
