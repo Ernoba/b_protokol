@@ -13,7 +13,7 @@ from .security import SecurityManager
 from .discovery import DiscoveryManager
 from .transfer import TransferManager
 from .server import ServerManager
-from .websocket import WebSocketManager # Import baru
+from .websocket import WebSocketManager
 
 class BProto:
     def __init__(self, device_name=None, secret=DEFAULT_SECRET, save_dir=DEFAULT_SAVE_DIR, port=None):
@@ -61,7 +61,7 @@ class BProto:
     # --- CLIENT ACTIONS ---
     
     def _connect_and_send_header(self, target_ip, packet_type, payload):
-        """Helper internal untuk koneksi TCP"""
+        """Helper internal untuk koneksi TCP dengan penanganan header 4-byte"""
         if target_ip not in self.discovery.peers:
             self.events.error("Target IP unknown (Scan first?)")
             return None
@@ -73,37 +73,50 @@ class BProto:
         try:
             sock.connect((target_ip, target_port))
             
-            # Auth Header
+            # 1. Kirim Header ke Server
             auth_info = self.security.get_outgoing_auth(target_ip)
             header = {
                 "type": packet_type,
                 "auth": auth_info
             }
-            header.update(payload) # Merge payload (file info / chat content)
+            header.update(payload) 
             
-            # Send Header
             js = json.dumps(header).encode()
             sock.sendall(struct.pack("!I", len(js)))
             sock.sendall(js)
             
-            # Handle Auth Response
-            resp_data = sock.recv(1024).decode()
+            # 2. Baca Respon Awal (Challenge/OK) - FIX: Pakai Header 4 Byte
+            raw_len = sock.recv(4)
+            if not raw_len: return None
+            header_len = struct.unpack("!I", raw_len)[0]
+            
+            resp_data = sock.recv(header_len).decode()
             if not resp_data: return None
             resp = json.loads(resp_data)
             
+            # 3. Handle Handshake jika diminta
             if resp['status'] == "CHALLENGE":
                 nonce = resp['nonce']
                 proof = self.security.create_proof(nonce)
+                # Sesuai server.py, proof dikirim mentah (bukan _send_json)
                 sock.sendall(proof.encode())
                 
-                auth_resp = json.loads(sock.recv(1024).decode())
+                # Baca Respon Akhir Handshake - FIX: Pakai Header 4 Byte
+                raw_len_final = sock.recv(4)
+                if not raw_len_final: return None
+                header_len_final = struct.unpack("!I", raw_len_final)[0]
+                
+                auth_resp_data = sock.recv(header_len_final).decode()
+                auth_resp = json.loads(auth_resp_data)
+                
                 if auth_resp['status'] == "OK":
                     self.security.save_client_token(target_ip, auth_resp['token'])
-                    return sock, auth_resp # Return socket aktif & respon akhir
+                    return sock, auth_resp 
                 else:
                     self.events.error("Authentication Failed")
                     sock.close()
                     return None
+                    
             elif resp['status'] == "OK":
                 return sock, resp
             
@@ -126,6 +139,7 @@ class BProto:
         if result:
             sock, resp = result
             try:
+                # Ambil offset jika server mendukung resume
                 start_byte = resp.get('resume_offset', 0)
                 self.transfer.stream_file(sock, file_meta['path'], start_byte, file_meta['size'])
                 self.events.log(f"Transfer Complete: {file_meta['name']}")

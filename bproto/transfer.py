@@ -1,173 +1,152 @@
-# bproto/core.py
-import socket
-import struct
-import json
+# bproto/transfer.py
 import os
 import time
+import socket
+import zipfile
+import hashlib
+import zlib
+from .config import CHUNK_SIZE, VERIFY_INTEGRITY, ENABLE_COMPRESSION, ENABLE_ENCRYPTION
 
-# Import Modul Baru
-from .config import *
-from .protocol import PacketType
-from .events import EventManager
-from .security import SecurityManager
-from .discovery import DiscoveryManager
-from .transfer import TransferManager
-from .server import ServerManager
-from .websocket import WebSocketManager
+class TransferManager:
+    def __init__(self, save_dir, events, security_manager=None):
+        self.save_dir = save_dir
+        self.events = events
+        self.security = security_manager # Referensi ke SecurityManager
 
-class BProto:
-    def __init__(self, device_name=None, secret=DEFAULT_SECRET, save_dir=DEFAULT_SAVE_DIR, port=None):
-        self.name = device_name if device_name else socket.gethostname()
-        self.save_dir = os.path.abspath(save_dir)
-        if not os.path.exists(self.save_dir): os.makedirs(self.save_dir)
+    def calculate_checksum(self, filepath):
+        sha256_hash = hashlib.sha256()
+        with open(filepath, "rb") as f:
+            for byte_block in iter(lambda: f.read(4096), b""):
+                sha256_hash.update(byte_block)
+        return sha256_hash.hexdigest()
 
-        # Port Logic
-        try:
-            self.tcp_port = port if port else TCP_PORT
-        except NameError:
-            self.tcp_port = 7002
-
-        # 1. Inisialisasi Sub-Sistem
-        self.events = EventManager()
-        self.security = SecurityManager(secret)
-        # Pass security ke transfer untuk enkripsi file
-        self.transfer = TransferManager(self.save_dir, self.events, self.security) 
+    def prepare_file(self, filepath):
+        is_zip = False
+        final_path = filepath
         
-        # 2. Network Managers
-        self.discovery = DiscoveryManager(self.name, self.tcp_port, self.events)
-        self.server = ServerManager(self.tcp_port, self.security, self.transfer, self.events)
+        if os.path.isdir(filepath):
+            final_path = f"{filepath}.zip"
+            self._zip_folder(filepath, final_path)
+            is_zip = True
+            
+        if not os.path.exists(final_path):
+            raise FileNotFoundError("File not found")
+            
+        filesize = os.path.getsize(final_path)
+        filename = os.path.basename(final_path)
         
-        # 3. WebSocket Manager (Baru)
-        self.ws_server = WebSocketManager(self.tcp_port, self.security, self.events, self.transfer)
-        
-        self.peers = self.discovery.peers 
-
-    def start(self):
-        self.events.log(f"BProto V2.5 (Crypto+WS) Starting...")
-        self.server.start()
-        self.discovery.start_listener()
-        self.ws_server.start() # Start WebSocket
-        self.events.log(f"TCP: {self.tcp_port}, WS: {self.tcp_port + 100}")
-        self.events.log("Service Active.")
-
-    def stop(self):
-        self.discovery.stop()
-        self.server.stop()
-        self.events.log("Service Stopped.")
-
-    def scan(self):
-        self.discovery.scan()
-
-    # --- CLIENT ACTIONS ---
-    
-    def _connect_and_send_header(self, target_ip, packet_type, payload):
-        """Helper internal untuk koneksi TCP dengan penanganan header 4-byte"""
-        if target_ip not in self.discovery.peers:
-            self.events.error("Target IP unknown (Scan first?)")
-            return None
-
-        target_port = self.discovery.peers[target_ip]['port']
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(CONNECTION_TIMEOUT)
-        
-        try:
-            sock.connect((target_ip, target_port))
+        checksum = None
+        if VERIFY_INTEGRITY:
+            self.events.log(f"Calculating checksum for {filename}...")
+            checksum = self.calculate_checksum(final_path)
             
-            # 1. Kirim Header ke Server
-            auth_info = self.security.get_outgoing_auth(target_ip)
-            header = {
-                "type": packet_type,
-                "auth": auth_info
-            }
-            header.update(payload) 
+        return {
+            "path": final_path,
+            "name": filename,
+            "size": filesize,
+            "is_zip": is_zip,
+            "checksum": checksum,
+            "compressed": ENABLE_COMPRESSION,
+            "encrypted": ENABLE_ENCRYPTION
+        }
+
+    def stream_file(self, sock, file_path, start_byte, total_size):
+        with open(file_path, 'rb') as f:
+            f.seek(start_byte)
+            sent = start_byte
+            start_time = time.time()
+            filename = os.path.basename(file_path)
             
-            js = json.dumps(header).encode()
-            sock.sendall(struct.pack("!I", len(js)))
-            sock.sendall(js)
-            
-            # 2. Baca Respon Awal (Challenge/OK) - FIX: Pakai Header 4 Byte
-            raw_len = sock.recv(4)
-            if not raw_len: return None
-            header_len = struct.unpack("!I", raw_len)[0]
-            
-            resp_data = sock.recv(header_len).decode()
-            if not resp_data: return None
-            resp = json.loads(resp_data)
-            
-            # 3. Handle Handshake jika diminta
-            if resp['status'] == "CHALLENGE":
-                nonce = resp['nonce']
-                proof = self.security.create_proof(nonce)
-                # Sesuai server.py, proof dikirim mentah (bukan _send_json)
-                sock.sendall(proof.encode())
+            while True:
+                chunk = f.read(CHUNK_SIZE)
+                if not chunk: break
                 
-                # Baca Respon Akhir Handshake - FIX: Pakai Header 4 Byte
-                raw_len_final = sock.recv(4)
-                if not raw_len_final: return None
-                header_len_final = struct.unpack("!I", raw_len_final)[0]
+                # 1. Kompresi
+                if ENABLE_COMPRESSION:
+                    chunk = zlib.compress(chunk)
                 
-                auth_resp_data = sock.recv(header_len_final).decode()
-                auth_resp = json.loads(auth_resp_data)
+                # 2. Enkripsi (Jika ada security manager dan enabled)
+                if self.security and ENABLE_ENCRYPTION:
+                    chunk = self.security.encrypt_data(chunk)
+
+                # Kirim panjang chunk dulu (agar penerima tahu seberapa banyak baca)
+                # Format: [4 byte length][data]
+                sock.sendall(len(chunk).to_bytes(4, byteorder='big'))
+                sock.sendall(chunk)
                 
-                if auth_resp['status'] == "OK":
-                    self.security.save_client_token(target_ip, auth_resp['token'])
-                    return sock, auth_resp 
-                else:
-                    self.events.error("Authentication Failed")
-                    sock.close()
-                    return None
-                    
-            elif resp['status'] == "OK":
-                return sock, resp
-            
-            sock.close()
-            return None
-        except Exception as e:
-            self.events.error(f"Connection Error: {e}")
-            if sock: sock.close()
-            return None
+                sent += len(chunk) # Hitung bytes raw yang dikirim (bukan asli)
+                
+                # Progress calc (estimasi kasar karena kompresi mengubah ukuran)
+                elapsed = time.time() - start_time
+                mbps = (sent - start_byte) / (1024*1024) / (elapsed if elapsed > 0 else 1)
+                self.events.progress(filename, min((sent/total_size)*100, 99), mbps)
 
-    def send_file(self, target_ip, filepath):
-        try:
-            file_meta = self.transfer.prepare_file(filepath)
-        except Exception as e:
-            self.events.error(str(e))
-            return False
+        # Kirim terminator ukuran 0
+        sock.sendall((0).to_bytes(4, byteorder='big'))
 
-        result = self._connect_and_send_header(target_ip, PacketType.FILE_INIT, {"file": file_meta})
+    def receive_stream(self, sock, meta):
+        path = os.path.join(self.save_dir, meta['name'])
         
-        if result:
-            sock, resp = result
-            try:
-                # Ambil offset jika server mendukung resume
-                start_byte = resp.get('resume_offset', 0)
-                self.transfer.stream_file(sock, file_meta['path'], start_byte, file_meta['size'])
-                self.events.log(f"Transfer Complete: {file_meta['name']}")
-                return True
-            except Exception as e:
-                self.events.error(f"Stream Error: {e}")
-            finally:
-                sock.close()
-                if file_meta['is_zip'] and os.path.exists(file_meta['path']):
-                    os.remove(file_meta['path'])
-        return False
+        # Deteksi fitur dari metadata pengirim
+        use_compression = meta.get('compressed', False)
+        use_encryption = meta.get('encrypted', False)
 
-    def send_message(self, target_ip, message):
-        """Fitur Baru: Kirim Chat"""
-        result = self._connect_and_send_header(target_ip, PacketType.MESSAGE, {"content": message})
-        if result:
-            sock, _ = result
-            sock.close()
-            self.events.log(f"Message sent to {target_ip}")
-            return True
-        return False
+        received_total = 0
+        total_expected = meta['size']
+        start_time = time.time()
 
-    def send_clipboard(self, target_ip, text):
-        """Fitur Baru: Kirim ke Clipboard Remote"""
-        result = self._connect_and_send_header(target_ip, PacketType.CLIPBOARD, {"content": text})
-        if result:
-            sock, _ = result
-            sock.close()
-            self.events.log(f"Clipboard data sent to {target_ip}")
-            return True
-        return False
+        with open(path, 'wb') as f:
+            while True:
+                # Baca panjang chunk berikutnya
+                raw_len = sock.recv(4)
+                if not raw_len: break
+                chunk_len = int.from_bytes(raw_len, byteorder='big')
+                if chunk_len == 0: break # End of stream
+
+                # Baca chunk penuh
+                chunk_data = b""
+                while len(chunk_data) < chunk_len:
+                    packet = sock.recv(chunk_len - len(chunk_data))
+                    if not packet: break
+                    chunk_data += packet
+                
+                # 1. Dekripsi
+                if use_encryption and self.security:
+                    try:
+                        chunk_data = self.security.decrypt_data(chunk_data)
+                    except Exception as e:
+                        self.events.error("Decryption error during transfer")
+                        break
+
+                # 2. Dekompresi
+                if use_compression:
+                    try:
+                        chunk_data = zlib.decompress(chunk_data)
+                    except Exception:
+                        self.events.error("Decompression error")
+                        break
+                
+                f.write(chunk_data)
+                received_total += len(chunk_data) # Ukuran asli
+                
+                elapsed = time.time() - start_time
+                mbps = (received_total) / (1024*1024) / (elapsed if elapsed > 0 else 1)
+                self.events.progress(meta['name'], (received_total/total_expected)*100, mbps)
+        
+        self.events.log(f"File Received: {meta['name']}")
+        
+        if VERIFY_INTEGRITY and 'checksum' in meta and meta['checksum']:
+            self.events.log("Verifying checksum...")
+            local_hash = self.calculate_checksum(path)
+            if local_hash == meta['checksum']:
+                self.events.log("Integrity Check: PASSED")
+            else:
+                self.events.error("Integrity Check: FAILED")
+
+    def _zip_folder(self, path, zip_name):
+        self.events.log("Zipping folder...")
+        with zipfile.ZipFile(zip_name, 'w', zipfile.ZIP_DEFLATED) as z:
+            for root, _, files in os.walk(path):
+                for file in files:
+                    z.write(os.path.join(root, file), 
+                            os.path.relpath(os.path.join(root, file), os.path.dirname(path)))
