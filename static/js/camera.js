@@ -3,6 +3,8 @@ let isFrontCamera = true;
 let backCameraList = [];
 let currentBackCameraIndex = 0;
 let timerSeconds = 0;
+// Tambahkan variabel global untuk filter di bagian atas
+let currentFilter = 'none';
 
 // Init Camera saat load
 document.addEventListener('DOMContentLoaded', async () => {
@@ -126,6 +128,36 @@ function startCaptureSequence() {
     }
 }
 
+// --- Tambahkan fungsi ini di camera.js ---
+
+function setFilter(filterName) {
+    currentFilter = filterName;
+    const video = document.getElementById('videoFeed');
+    
+    // Update UI Video Preview
+    video.style.filter = getFilterCss(filterName);
+    
+    // Update tombol aktif
+    document.querySelectorAll('.filter-chip').forEach(btn => {
+        btn.classList.remove('active');
+        if(btn.innerText.toLowerCase() === filterName || (filterName === 'none' && btn.innerText === 'Normal')) {
+            btn.classList.add('active');
+        }
+    });
+}
+
+function getFilterCss(name) {
+    switch(name) {
+        case 'bw': return 'grayscale(100%)';
+        case 'sepia': return 'sepia(100%)';
+        case 'warm': return 'saturate(1.5) contrast(0.9)';
+        case 'cool': return 'hue-rotate(180deg) saturate(0.5)';
+        case 'bright': return 'brightness(1.3) contrast(1.1)';
+        default: return 'none';
+    }
+}
+
+// --- UPDATE FUNGSI takePicture() ---
 function takePicture() {
     // Flash Effect
     const flash = document.getElementById('flash');
@@ -145,18 +177,23 @@ function takePicture() {
         ctx.scale(-1, 1);
     }
 
+    // 1. TERAPKAN FILTER KE CANVAS (FITUR BARU)
+    if (currentFilter !== 'none') {
+        ctx.filter = getFilterCss(currentFilter);
+    }
+
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    
+    // Reset filter agar tidak mengganggu drawImage berikutnya (opsional)
+    ctx.filter = 'none'; 
 
     canvas.toBlob(blob => {
         const url = URL.createObjectURL(blob);
         const id = Date.now();
         
-        // Simpan ke Global State APP (yang ada di app.js)
         if(window.APP) {
             window.APP.photos.push({ id, blob, url });
-            // Panggil renderGallery (global dari gallery.js)
             if(typeof renderGallery === 'function') renderGallery();
-            
             showToast("Foto tersimpan!", "success");
         }
     }, 'image/jpeg', 0.95);

@@ -38,9 +38,116 @@ video { width: 100%; height: 100%; object-fit: cover; }
 .shutter-outer:active .shutter-inner { transform: scale(0.9); background: var(--primary); }
 
 /* Gallery & Modal */
-.gallery-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 15px; overflow-y: auto; flex: 1; }
-.photo-card { aspect-ratio: 9/16; background: #ddd; border-radius: 12px; overflow: hidden; position: relative; }
-.photo-card img { width: 100%; height: 100%; object-fit: cover; }
+/* style.css - Update/Replace bagian ini */
+
+/* ... (Kode variabel :root tetap sama) ... */
+
+/* Perbaikan Gallery Grid agar foto tidak mengecil */
+.gallery-grid { 
+    display: grid; 
+    grid-template-columns: repeat(2, 1fr); /* 2 Kolom fix */
+    gap: 12px; 
+    padding: 15px; 
+    overflow-y: auto; 
+    flex: 1; 
+    align-content: start; /* Mencegah item melar vertikal */
+}
+
+/* Card Foto yang Rapi */
+.photo-card { 
+    aspect-ratio: 3/4; /* Rasio standar potrait */
+    background: #000; 
+    border-radius: 16px; 
+    overflow: hidden; 
+    position: relative; 
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    transition: transform 0.2s;
+}
+
+.photo-card:active {
+    transform: scale(0.98);
+}
+
+.photo-card img { 
+    width: 100%; 
+    height: 100%; 
+    object-fit: cover; /* KUNCI: Agar foto full tidak gepeng */
+    display: block;
+}
+
+/* Tombol Hapus (Badge Merah) - FITUR BARU */
+.del-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 30px;
+    height: 30px;
+    background: rgba(231, 76, 60, 0.9);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    cursor: pointer;
+    backdrop-filter: blur(2px);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    z-index: 5;
+}
+
+/* Tombol Download (Badge Hijau) - FITUR BARU */
+.download-badge {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    width: 30px;
+    height: 30px;
+    background: rgba(46, 204, 113, 0.9);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    cursor: pointer;
+    backdrop-filter: blur(2px);
+    z-index: 5;
+}
+
+/* Filter Bar (Scroll Horizontal) - FITUR BARU */
+.filter-scroll {
+    position: absolute;
+    bottom: 120px; /* Di atas tombol shutter */
+    left: 0;
+    width: 100%;
+    display: flex;
+    gap: 15px;
+    padding: 10px 20px;
+    overflow-x: auto;
+    z-index: 30;
+    justify-content: center;
+    /* Hilangkan scrollbar */
+    -ms-overflow-style: none;  
+    scrollbar-width: none;  
+}
+.filter-scroll::-webkit-scrollbar { display: none; }
+
+.filter-chip {
+    background: rgba(0,0,0,0.6);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    border: 1px solid rgba(255,255,255,0.3);
+    cursor: pointer;
+    transition: 0.3s;
+}
+.filter-chip.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    font-weight: bold;
+}
 
 /* Toast Notification (Popup Bagus) */
 #toastContainer { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 1000; display: flex; flex-direction: column; gap: 10px; width: 90%; max-width: 350px; }
