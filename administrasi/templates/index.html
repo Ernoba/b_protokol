@@ -1,17 +1,114 @@
 <!DOCTYPE html>
-<html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Photobooth Register</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
 <body>
-    <h1>Form Data Diri Photobooth</h1>
-    <form method="POST">
-        <label>Nama Lengkap:</label><br>
-        <input type="text" name="nama" required><br><br>
+    <div id="camera-shutter" class="shutter-overlay">
+        <div class="shutter-top"></div>
+        <div class="shutter-bottom"></div>
+        <div class="camera-flash"></div>
+        <div class="shutter-text">CHEESE! 📸</div>
+    </div>
+
+    <div class="container-glass">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h1><i class="fas fa-camera-retro"></i> Data Diri</h1>
+            <a href="/help" title="Bantuan"><i class="fas fa-question-circle" style="font-size: 1.5rem;"></i></a>
+        </div>
         
-        <label>Alamat:</label><br>
-        <textarea name="alamat" required></textarea><br><br>
+        <form id="registerForm">
+            <label>Nama Lengkap</label>
+            <input type="text" id="nama" name="nama" placeholder="Masukkan nama Anda..." required>
+            
+            <label style="margin-top: 15px;">Alamat</label>
+            <textarea id="alamat" name="alamat" rows="3" placeholder="Masukkan alamat..." required></textarea>
+            
+            <label style="margin-top: 15px;">Buat Kode Akses (Untuk Buka Foto)</label>
+            <input type="text" id="kunci" name="kunci" placeholder="Contoh: 1234 (Ingat kode ini!)" required>
+            
+            <button type="submit">Kirim Data <i class="fas fa-paper-plane"></i></button>
+        </form>
         
-        <button type="submit">Kirim Data</button>
-    </form>
-    <br>
-    <a href="/gallery">Cari Foto Saya >></a>
+        <br>
+        <div style="text-align: center; margin-top: 20px;">
+            <a href="/gallery">Cari Foto Saya <i class="fas fa-arrow-right"></i></a>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <script>
+        document.getElementById('registerForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Simpan referensi tombol untuk diubah teksnya nanti
+            const btn = this.querySelector('button');
+            const originalText = btn.innerHTML; // Simpan teks asli tombol
+            btn.innerHTML = 'Mengirim...';
+            btn.disabled = true; // Matikan tombol agar tidak double klik
+            
+            const data = {
+                nama: document.getElementById('nama').value,
+                alamat: document.getElementById('alamat').value,
+                kunci: document.getElementById('kunci').value
+            };
+
+            fetch('/', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            })
+            .then(res => res.json())
+            .then(response => {
+                if(response.status === 'success') {
+                    playCameraAnimation();
+                } else {
+                    // --- JIKA NAMA SUDAH ADA (ERROR) ---
+                    alert(response.msg); // Tampilkan pesan error dari Python
+                    
+                    // Kembalikan tombol seperti semula
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert("Terjadi kesalahan koneksi.");
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            });
+        });
+    </script>
+    <script>
+        // Override submit form standard untuk animasi
+        document.getElementById('registerForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const btn = this.querySelector('button');
+            btn.innerHTML = 'Mengirim...';
+            
+            const data = {
+                nama: document.getElementById('nama').value,
+                alamat: document.getElementById('alamat').value,
+                kunci: document.getElementById('kunci').value
+            };
+
+            fetch('/', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            })
+            .then(res => res.json())
+            .then(response => {
+                if(response.status === 'success') {
+                    playCameraAnimation();
+                }
+            });
+        });
+    </script>
 </body>
 </html>

@@ -1,0 +1,264 @@
+/* --- VARIABLE & RESET (Premium Dark Palette) --- */
+:root {
+    /* Warna utama yang lebih "mahal" (Deep Indigo & Violet) */
+    --primary: #4f46e5;       /* Indigo modern */
+    --secondary: #7c3aed;     /* Violet deep */
+    --accent: #06b6d4;        /* Cyan untuk highlight kecil */
+    
+    /* Background base */
+    --bg-deep: #0f172a;       /* Slate 900 - Gelap tapi bukan hitam mati */
+    
+    /* Glass settings yang lebih mudah dibaca */
+    --glass-bg: rgba(30, 41, 59, 0.7); /* Lebih gelap, tidak terlalu bening */
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --text: #f8fafc;
+    --text-muted: #94a3b8;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; transition: all 0.2s ease-out; }
+
+body {
+    font-family: 'Inter', 'Outfit', sans-serif; /* Inter lebih clean untuk UI */
+    background-color: var(--bg-deep);
+    /* Background statis dengan glow halus di pojok, tidak bikin pusing */
+    background-image: 
+        radial-gradient(at 0% 0%, rgba(79, 70, 229, 0.15) 0px, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(124, 58, 237, 0.15) 0px, transparent 50%);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 60px 20px;
+}
+
+/* --- GLASS CONTAINER (Refined) --- */
+.container-glass {
+    background: var(--glass-bg);
+    /* Blur tetap ada tapi background lebih solid */
+    backdrop-filter: blur(20px); 
+    -webkit-backdrop-filter: blur(20px);
+    
+    /* Border sangat tipis dan halus */
+    border: 1px solid var(--glass-border);
+    border-top: 1px solid rgba(255,255,255,0.15); /* Highlight atas */
+    
+    border-radius: 16px; /* Radius sedikit dikurangi agar lebih "serius" */
+    padding: 40px;
+    width: 100%;
+    max-width: 600px;
+    
+    /* Shadow lembut untuk kedalaman, bukan glow norak */
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    margin-bottom: 24px;
+}
+
+.container-wide { max-width: 1000px; }
+
+/* --- TYPOGRAPHY --- */
+h1 { 
+    font-size: 2rem; 
+    margin-bottom: 10px; 
+    font-weight: 700; 
+    letter-spacing: -0.5px;
+    background: linear-gradient(to right, #fff, #94a3b8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent; /* Judul gradient halus */
+    text-align: center;
+}
+
+h2, h3 { color: var(--text); font-weight: 600; margin-bottom: 12px; }
+
+a { color: var(--accent); text-decoration: none; font-weight: 500; transition: color 0.2s; }
+a:hover { color: #fff; text-decoration: underline; }
+
+/* --- FORMS (Clean Input) --- */
+label { 
+    display: block; 
+    margin-bottom: 8px; 
+    color: var(--text-muted); 
+    font-size: 0.9rem; 
+    font-weight: 500;
+}
+
+input[type="text"], textarea {
+    width: 100%;
+    padding: 12px 16px;
+    border-radius: 8px;
+    /* Input lebih gelap dari card agar fokus */
+    background: rgba(15, 23, 42, 0.6); 
+    border: 1px solid var(--glass-border);
+    color: #fff;
+    font-size: 0.95rem;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+input:focus, textarea:focus { 
+    border-color: var(--primary); 
+    box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2); /* Glow focus ring halus */
+}
+
+/* --- BUTTONS (Modern Gradient) --- */
+button {
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    color: white;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px; /* Kotak dengan sudut tumpul lebih modern dari bulat penuh */
+    font-size: 1rem;
+    cursor: pointer;
+    font-weight: 600;
+    width: 100%;
+    margin-top: 16px;
+    position: relative;
+    overflow: hidden;
+}
+
+button:hover { 
+    opacity: 0.9; 
+    transform: translateY(-1px);
+    box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3);
+}
+
+/* --- TABLES --- */
+table { width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 10px; }
+th { 
+    text-align: left; 
+    padding: 12px 16px; 
+    color: var(--text-muted); 
+    font-size: 0.85rem; 
+    text-transform: uppercase; 
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--glass-border);
+}
+td { 
+    padding: 16px; 
+    border-bottom: 1px solid rgba(255,255,255,0.03); 
+    color: var(--text);
+}
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: rgba(255,255,255,0.02); }
+
+/* --- DRAG & DROP ZONES (Minimalist) --- */
+#container { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 16px; }
+
+.drop-zone {
+    border: 2px dashed rgba(255,255,255,0.15);
+    border-radius: 12px;
+    padding: 30px;
+    text-align: center;
+    background: rgba(255,255,255,0.02);
+    cursor: pointer;
+}
+
+.drop-zone:hover, .drop-zone.dragover {
+    border-color: var(--primary);
+    background: rgba(79, 70, 229, 0.05);
+}
+
+.drop-zone i { font-size: 2.5rem; margin-bottom: 10px; color: var(--text-muted); display: block; }
+.drop-zone h3 { font-size: 1rem; color: var(--text); margin: 0; }
+
+/* --- GALLERY --- */
+.gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 16px; margin-top: 20px;}
+.photo-card { 
+    background: rgba(255,255,255,0.03); 
+    padding: 8px; 
+    border-radius: 8px; 
+    border: 1px solid var(--glass-border);
+}
+.photo-card img { width: 100%; border-radius: 6px; display: block; }
+
+/* --- TOAST NOTIFICATION --- */
+#toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; top: auto; }
+.toast {
+    background: #1e293b;
+    border: 1px solid var(--glass-border);
+    border-left: 4px solid var(--accent);
+    color: white;
+    padding: 16px;
+    border-radius: 8px;
+    margin-top: 10px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+    display: flex; align-items: center; gap: 12px;
+    font-size: 0.9rem;
+    animation: slideIn 0.3s ease forwards;
+}
+@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+/* --- BUTTON SMALL --- */
+.btn-sm {
+    font-size: 0.8rem !important;
+    padding: 8px 15px !important;
+    width: auto !important;
+    margin-top: 5px !important;
+}
+
+/* --- CAMERA SHUTTER ANIMATION --- */
+.shutter-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    z-index: 10000;
+    pointer-events: none;
+    flex-direction: column;
+}
+
+.shutter-top, .shutter-bottom {
+    background: #000;
+    width: 100%;
+    height: 50%;
+    transition: all 0.1s;
+    position: absolute;
+    left: 0;
+}
+
+.shutter-top { top: -50%; animation: shutTop 0.8s ease-in-out forwards; }
+.shutter-bottom { bottom: -50%; animation: shutBottom 0.8s ease-in-out forwards; }
+
+.camera-flash {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: white;
+    opacity: 0;
+    animation: flash 0.3s 0.6s ease-out forwards;
+}
+
+.shutter-text {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 3rem;
+    font-weight: bold;
+    z-index: 10002;
+    opacity: 0;
+    animation: textPop 0.5s 0.6s forwards;
+}
+
+@keyframes shutTop {
+    0% { top: -50%; }
+    40% { top: 0; }
+    60% { top: 0; }
+    100% { top: -50%; }
+}
+
+@keyframes shutBottom {
+    0% { bottom: -50%; }
+    40% { bottom: 0; }
+    60% { bottom: 0; }
+    100% { bottom: -50%; }
+}
+
+@keyframes flash {
+    0% { opacity: 0; }
+    50% { opacity: 1; }
+    100% { opacity: 0; }
+}
+
+@keyframes textPop {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+    50% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(1); }
+}

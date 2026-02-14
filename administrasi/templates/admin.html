@@ -1,28 +1,100 @@
 <!DOCTYPE html>
-<html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
 <body>
-    <h1>Halaman Admin (ACC Nama)</h1>
-    <a href="/upload_page">Pergi ke Upload Foto >></a>
-    <hr>
-    <table border="1">
-        <thead>
-            <tr>
-                <th>Nama</th>
-                <th>Alamat</th>
-                <th>Aksi</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for t in tamu %}
-            <tr>
-                <td>{{ t.nama }}</td>
-                <td>{{ t.alamat }}</td>
-                <td>
-                    <a href="/approve/{{ t.id }}">ACC (Buat Folder)</a>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <div class="container-glass container-wide">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h1><i class="fas fa-user-shield"></i> Dashboard</h1>
+            <a href="/logout" style="color: #ff4757; font-size: 0.9rem;">Logout <i class="fas fa-sign-out-alt"></i></a>
+        </div>
+        
+        <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+            <input type="text" id="searchInput" onkeyup="filterTable()" placeholder="Cari nama peserta..." style="flex: 1;">
+            <a href="/upload_page" style="flex: 0 0 auto;">
+                <button style="margin: 0; padding: 12px 20px;"><i class="fas fa-cloud-upload-alt"></i> Upload Foto</button>
+            </a>
+        </div>
+        
+        <table id="tamuTable">
+            <thead>
+                <tr>
+                    <th>Nama</th>
+                    <th>Alamat</th>
+                    <th>Status</th>
+                    <th>Aksi</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in tamu %}
+                <tr class="tamu-row" data-status="{{ t.status }}">
+                    <td><strong>{{ t.nama }}</strong></td>
+                    <td>{{ t.alamat }}</td>
+                    <td>
+                        {% if t.status == 'pending' %}
+                            <span style="color: orange;"><i class="fas fa-clock"></i> Pending</span>
+                        {% else %}
+                            <span style="color: #00f260;"><i class="fas fa-check-circle"></i> Approved</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if t.status == 'pending' %}
+                        <a href="/approve/{{ t.id }}">
+                            <button class="btn-sm"><i class="fas fa-check"></i> ACC</button>
+                        </a>
+                        {% else %}
+                        <small>Folder: {{ t.folder }}</small>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        // FITUR SEARCH TABLE
+        function filterTable() {
+            var input, filter, table, tr, td, i, txtValue;
+            input = document.getElementById("searchInput");
+            filter = input.value.toUpperCase();
+            table = document.getElementById("tamuTable");
+            tr = table.getElementsByTagName("tr");
+            for (i = 0; i < tr.length; i++) {
+                td = tr[i].getElementsByTagName("td")[0]; // Kolom Nama
+                if (td) {
+                    txtValue = td.textContent || td.innerText;
+                    if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                        tr[i].style.display = "";
+                    } else {
+                        tr[i].style.display = "none";
+                    }
+                }       
+            }
+        }
+
+        // FITUR AUTO REFRESH (Cek data baru setiap 5 detik)
+        setInterval(function() {
+            fetch('/api/get_tamu')
+            .then(response => response.json())
+            .then(data => {
+                if (data.length > 0) {
+                    // Jika ada data pending baru, reload halaman
+                    // Bisa dibuat lebih canggih dengan appendChild, tapi reload lebih aman
+                    // Cek apakah jumlah baris pending di tabel sama dengan data server
+                    const currentPending = document.querySelectorAll('tr[data-status="pending"]').length;
+                    if (currentPending !== data.length) {
+                        location.reload();
+                    }
+                }
+            });
+        }, 5000);
+    </script>
 </body>
 </html>

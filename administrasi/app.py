@@ -1,8 +1,10 @@
 import os
 import json
-from flask import Flask, render_template, request, redirect, url_for, jsonify, send_from_directory
+import time
+from flask import Flask, render_template, request, redirect, url_for, jsonify, session, flash
 
 app = Flask(__name__)
+app.secret_key = 'rahasia_super_aman_ganti_ini' # Ganti dengan random string
 UPLOAD_FOLDER = 'static/uploads'
 DATA_FILE = 'data.json'
 
@@ -12,7 +14,7 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
-# --- FUNGSI BANTUAN JSON ---
+# --- FUNGSI BANTUAN ---
 def load_data():
     if not os.path.exists(DATA_FILE):
         return []
@@ -26,50 +28,104 @@ def save_data(data):
     with open(DATA_FILE, 'w') as f:
         json.dump(data, f, indent=4)
 
-# --- ROUTES ---
+# --- ROUTES AUTH ADMIN ---
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        # Simple hardcoded login
+        if username == 'admin' and password == 'admin123':
+            session['admin_logged_in'] = True
+            return redirect(url_for('admin'))
+        else:
+            flash('Username atau Password salah!', 'error')
+    return render_template('login.html')
 
-# 1. HALAMAN TAMU (Input Data)
+@app.route('/logout')
+def logout():
+    session.pop('admin_logged_in', None)
+    return redirect(url_for('login'))
+
+# --- ROUTES USER ---
+
+# 1. HALAMAN TAMU & INSTRUKSI
+# app.py
+
 @app.route('/', methods=['GET', 'POST'])
 def index():
     if request.method == 'POST':
-        nama = request.form['nama']
-        alamat = request.form['alamat']
+        data_json = request.get_json()
         
-        data = load_data()
-        # Tambah data baru dengan status pending
+        # Ambil nama dan bersihkan spasi di awal/akhir
+        nama = data_json.get('nama', '').strip()
+        alamat = data_json.get('alamat')
+        kunci = data_json.get('kunci')
+        
+        db = load_data()
+
+        # --- LOGIKA PENGECEKAN NAMA DUPLIKAT ---
+        # Kita cek case-insensitive (huruf besar/kecil dianggap sama)
+        # Contoh: "Budi" sama dengan "budi"
+        nama_exists = any(user['nama'].lower() == nama.lower() for user in db)
+
+        if nama_exists:
+            return jsonify({
+                "status": "error", 
+                "msg": "Nama sudah terdaftar! Harap gunakan nama lain atau tambahkan inisial."
+            })
+        # ---------------------------------------
+
         new_entry = {
-            "id": len(data) + 1,
+            "id": int(time.time()),
             "nama": nama,
             "alamat": alamat,
+            "kunci": kunci, 
             "status": "pending",
             "folder": ""
         }
-        data.append(new_entry)
-        save_data(data)
+        db.append(new_entry)
+        save_data(db)
         
-        return "Data terkirim! Silakan tunggu Admin."
+        return jsonify({"status": "success", "msg": "Data tersimpan!"})
+        
     return render_template('index.html')
 
-# 2. HALAMAN ADMIN (Cek & ACC)
+@app.route('/help')
+def help_page():
+    return render_template('help.html')
+
+# 2. HALAMAN ADMIN
 @app.route('/admin')
 def admin():
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('login'))
+        
     data = load_data()
-    # Hanya tampilkan yang pending
-    pending_list = [d for d in data if d['status'] == 'pending']
-    return render_template('admin.html', tamu=pending_list)
+    # Sortir: Pending di atas
+    sorted_data = sorted(data, key=lambda x: x['status'] == 'approved')
+    return render_template('admin.html', tamu=sorted_data)
 
-# Logic ACC (Buat Folder Asli)
+# API untuk Auto Refresh Data di Admin
+@app.route('/api/get_tamu')
+def api_get_tamu():
+    if not session.get('admin_logged_in'):
+        return jsonify([])
+    data = load_data()
+    pending_only = [d for d in data if d['status'] == 'pending']
+    return jsonify(pending_only)
+
 @app.route('/approve/<int:id>')
 def approve(id):
+    if not session.get('admin_logged_in'): return redirect(url_for('login'))
+    
     data = load_data()
     for d in data:
         if d['id'] == id:
             d['status'] = 'approved'
-            # Buat nama folder KAPITAL (ganti spasi dengan underscore)
             folder_name = d['nama'].upper().replace(" ", "_")
             d['folder'] = folder_name
             
-            # Buat Folder Fisik di Server
             path = os.path.join(app.config['UPLOAD_FOLDER'], folder_name)
             if not os.path.exists(path):
                 os.makedirs(path)
@@ -78,44 +134,79 @@ def approve(id):
     save_data(data)
     return redirect(url_for('admin'))
 
-# 3. HALAMAN UPLOAD (Drag & Drop Admin)
+# 3. UPLOAD PAGE
 @app.route('/upload_page')
 def upload_page():
-    # Ambil daftar folder asli yang ada di static/uploads
+    if not session.get('admin_logged_in'): return redirect(url_for('login'))
     folders = [f for f in os.listdir(app.config['UPLOAD_FOLDER']) if os.path.isdir(os.path.join(app.config['UPLOAD_FOLDER'], f))]
     return render_template('upload.html', folders=folders)
 
-# Logic Terima File Upload
 @app.route('/upload_process/<folder_name>', methods=['POST'])
 def upload_process(folder_name):
+    if not session.get('admin_logged_in'): 
+        return jsonify({'msg': 'Unauthorized'}), 401
+
     if 'files[]' not in request.files:
-        return jsonify({'msg': 'No file'})
+        return jsonify({'msg': 'No file part'}), 400
     
     files = request.files.getlist('files[]')
     save_path = os.path.join(app.config['UPLOAD_FOLDER'], folder_name)
     
+    count = 0
     for file in files:
         if file.filename != '':
             file.save(os.path.join(save_path, file.filename))
+            count += 1
             
-    return jsonify({'msg': 'Berhasil Upload'})
+    # Return JSON valid agar JS menganggap sukses
+    return jsonify({'msg': 'Berhasil', 'count': count}), 200
 
-# 4. HALAMAN GALLERY (User Cari Foto)
-@app.route('/gallery')
+# 4. GALLERY DENGAN KUNCI
+@app.route('/gallery', methods=['GET', 'POST'])
 def gallery():
-    query = request.args.get('cari', '').upper().replace(" ", "_")
     folder_found = None
     files = []
+    locked = True
+    error_msg = None
+    
+    # Ambil folder user
+    search_name = request.args.get('cari', '').upper().replace(" ", "_")
+    
+    if search_name:
+        # Cek apakah folder ada di database
+        db = load_data()
+        user_data = next((item for item in db if item["folder"] == search_name), None)
+        
+        folder_path = os.path.join(app.config['UPLOAD_FOLDER'], search_name)
+        
+        if user_data and os.path.exists(folder_path):
+            folder_found = search_name
+            
+            # Cek Session (Apakah user sudah unlock folder ini?)
+            session_key = f"unlocked_{search_name}"
+            
+            if session.get(session_key):
+                locked = False
+                files = os.listdir(folder_path)
+            
+            # Jika user submit password
+            if request.method == 'POST':
+                input_key = request.form.get('kunci_akses')
+                if input_key == user_data['kunci']:
+                    session[session_key] = True
+                    locked = False
+                    files = os.listdir(folder_path)
+                else:
+                    error_msg = "Kode akses salah!"
 
-    if query:
-        # Cek apakah folder fisik ada
-        folder_path = os.path.join(app.config['UPLOAD_FOLDER'], query)
-        if os.path.exists(folder_path):
-            folder_found = query
-            # List semua file gambar di folder itu
-            files = os.listdir(folder_path)
-
-    return render_template('gallery.html', folder=folder_found, files=files)
+    return render_template('gallery.html', 
+                           folder=folder_found, 
+                           files=files, 
+                           locked=locked, 
+                           error=error_msg,
+                           search_query=request.args.get('cari', ''))
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    # host='0.0.0.0' artinya membuka akses ke semua IP publik di jaringan
+    # port=5000 adalah port standar Flask (bisa diganti jika bentrok)
+    app.run(host='0.0.0.0', port=5000, debug=True)

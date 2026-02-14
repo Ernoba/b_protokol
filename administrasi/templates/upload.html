@@ -1,49 +1,36 @@
 <!DOCTYPE html>
-<html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Foto</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="{{ url_for('static', filename='script.js') }}" defer></script>
+</head>
 <body>
-    <h1>Upload Foto ke Folder Peserta</h1>
-    <p>Drag file foto (bisa banyak sekaligus) ke kotak nama di bawah ini.</p>
-    <a href="/admin">Kembali ke Admin</a>
-    <hr>
+    <div class="container-glass container-wide">
+        <h1><i class="fas fa-cloud-upload-alt"></i> Upload Foto</h1>
+        <p style="text-align:center; margin-bottom:20px;">Drag file foto ke kotak nama peserta di bawah ini.</p>
+        
+        <a href="/admin"><i class="fas fa-chevron-left"></i> Kembali ke Admin</a>
+        <hr style="border-color: rgba(255,255,255,0.2); margin: 20px 0;">
 
-    <div id="container">
-        {% for f in folders %}
-        <div style="border: 2px solid black; padding: 20px; margin-bottom: 10px; width: 300px;" 
-             ondrop="dropHandler(event, '{{ f }}')" 
-             ondragover="dragOverHandler(event)">
-            <h3>Folder: {{ f }}</h3>
-            <p>Geser foto ke sini...</p>
+        <div id="container">
+            {% for f in folders %}
+            <div class="drop-zone" 
+                 ondrop="dropHandler(event, '{{ f }}')" 
+                 ondragover="dragOverHandler(event)"
+                 ondragleave="dragLeaveHandler(event)">
+                <i class="fas fa-folder-open"></i>
+                <h3>{{ f }}</h3>
+                <p>Drop foto di sini</p>
+            </div>
+            {% endfor %}
         </div>
-        {% endfor %}
     </div>
-
-    <script>
-        function dragOverHandler(ev) {
-            ev.preventDefault();
-        }
-
-        function dropHandler(ev, folderName) {
-            ev.preventDefault();
-            
-            // Ambil file yang didrop
-            var files = ev.dataTransfer.files;
-            var formData = new FormData();
-            
-            for (var i = 0; i < files.length; i++) {
-                formData.append('files[]', files[i]);
-            }
-
-            // Kirim ke server
-            fetch('/upload_process/' + folderName, {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                alert('Foto berhasil masuk ke folder: ' + folderName);
-            })
-            .catch(error => console.error('Error:', error));
-        }
-    </script>
 </body>
 </html>

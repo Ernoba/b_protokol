@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bantuan</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container-glass">
+        <h1><i class="fas fa-info-circle"></i> Cara Penggunaan</h1>
+        <ol style="margin-left: 20px; line-height: 1.8;">
+            <li>Isi Nama, Alamat, dan buat <strong>Kode Akses</strong> (Password folder).</li>
+            <li>Klik "Kirim Data" dan tunggu instruksi "Silakan Ambil Foto".</li>
+            <li>Bergayalah di depan kamera photobooth!</li>
+            <li>Setelah selesai, Admin akan mengupload fotomu.</li>
+            <li>Buka menu <strong>"Cari Foto Saya"</strong>.</li>
+            <li>Ketik namamu, lalu masukkan Kode Akses untuk mendownload foto.</li>
+        </ol>
+        <br>
+        <a href="/"><button>Mengerti, Ayo Daftar!</button></a>
+    </div>
+</body>
+</html>

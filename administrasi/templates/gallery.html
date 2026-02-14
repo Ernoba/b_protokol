@@ -1,31 +1,78 @@
 <!DOCTYPE html>
-<html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Galeri Foto</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="{{ url_for('static', filename='script.js') }}" defer></script>
+</head>
 <body>
-    <h1>Cari Foto Anda</h1>
-    <a href="/">Kembali ke Home</a>
-    <br><br>
-    
-    <form method="GET">
-        <input type="text" name="cari" placeholder="Ketik Nama Anda...">
-        <button type="submit">Cari Folder</button>
-    </form>
-    <hr>
-
-    {% if folder %}
-        <h2>Isi Folder: {{ folder }}</h2>
+    <div class="container-glass container-wide">
+        <h1><i class="fas fa-images"></i> Cari Foto</h1>
+        <a href="/"><i class="fas fa-home"></i> Home</a>
+        <br><br>
         
-        {% for file in files %}
-            <div style="margin-bottom: 20px;">
-                <img src="/static/uploads/{{ folder }}/{{ file }}" width="200"><br>
-                
-                <a href="/static/uploads/{{ folder }}/{{ file }}" download>
-                    <button>Download Foto Ini</button>
-                </a>
-            </div>
-        {% endfor %}
+        <form method="GET" style="display: flex; gap: 10px;">
+            <input type="text" name="cari" value="{{ search_query }}" placeholder="Ketik Nama Pendaftaran..." style="flex:1;">
+            <button type="submit" style="width: auto; margin:0;"><i class="fas fa-search"></i></button>
+        </form>
+        
+        <hr style="border-color: rgba(255,255,255,0.2); margin: 30px 0;">
 
-    {% else %}
-        <p>Folder tidak ditemukan atau belum dibuat.</p>
-    {% endif %}
+        {% if folder %}
+            <h2><i class="far fa-folder"></i> {{ folder }}</h2>
+
+            {% if locked %}
+                <div style="text-align: center; background: rgba(0,0,0,0.3); padding: 30px; border-radius: 10px;">
+                    <i class="fas fa-lock" style="font-size: 3rem; color: #ff4757; margin-bottom: 15px;"></i>
+                    <h3>Folder Terkunci</h3>
+                    <p>Masukkan kode akses yang Anda buat saat mendaftar.</p>
+                    
+                    {% if error %}
+                    <p style="color: #ff4757;">{{ error }}</p>
+                    {% endif %}
+
+                    <form method="POST" style="max-width: 300px; margin: 0 auto;">
+                        <input type="password" name="kunci_akses" placeholder="Kode Akses..." required>
+                        <button type="submit">Buka Folder</button>
+                    </form>
+                </div>
+
+            {% else %}
+                {% if files|length == 0 %}
+                    <div style="text-align: center; padding: 40px;">
+                        <i class="fas fa-hourglass-half" style="font-size: 3rem; margin-bottom: 10px; color: #f1c40f;"></i>
+                        <h3>Tunggu Sebentar Ya...</h3>
+                        <p>Folder sudah ada, tapi Admin belum mengupload foto kamu.</p>
+                        <p>Silakan refresh halaman ini beberapa saat lagi.</p>
+                        <button onclick="location.reload()" style="width: auto; margin-top: 15px;">Refresh <i class="fas fa-sync"></i></button>
+                    </div>
+                {% else %}
+                    <div class="gallery-grid">
+                        {% for file in files %}
+                        <div class="photo-card">
+                            <img src="{{ url_for('static', filename='uploads/' + folder + '/' + file) }}" alt="Foto">
+                            <a href="{{ url_for('static', filename='uploads/' + folder + '/' + file) }}" download>
+                                <button class="btn-sm" style="width: 100%;">
+                                    <i class="fas fa-download"></i> Simpan
+                                </button>
+                            </a>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endif %}
+
+        {% else %}
+            {% if search_query %}
+            <div style="text-align: center; opacity: 0.7;">
+                <p>Folder tidak ditemukan. Pastikan nama sesuai saat pendaftaran atau tunggu admin ACC.</p>
+            </div>
+            {% endif %}
+        {% endif %}
+    </div>
 </body>
 </html>
