@@ -1,30 +1,30 @@
 import os
 import time
-import threading
 import uuid
 import socket
 from flask import Flask, render_template, jsonify, request
 from werkzeug.utils import secure_filename
 
-# Import library bproto
+# Import library bproto Anda
 from bproto import BProto
 
 app = Flask(__name__, template_folder='templates')
 
+# Konfigurasi Folder
 UPLOAD_FOLDER = 'temp_uploads'
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
+# State Global
 STATE = {
     "client": None,
     "target_ip": None,
     "logs": []
 }
 
-# Init BProto Client
-# V2 Logic: Port 0/None otomatis dihandle di core.py
+# Init BProto
 STATE["client"] = BProto(device_name="Ernoba-Photobooth-Client") 
 STATE["client"].start()
 
@@ -35,24 +35,31 @@ def add_log(msg, type="info"):
     if len(STATE["logs"]) > 50: STATE["logs"].pop()
     print(f"[{type.upper()}] {msg}")
 
-def process_and_send(filepath, filename):
+# --- FUNGSI PENGIRIM (DIPERBARUI) ---
+def send_sync(filepath, filename):
+    """
+    Mengirim file secara langsung dan mengembalikan True/False.
+    Tidak ada Threading di sini.
+    """
     target = STATE["target_ip"]
     if not target:
-        add_log(f"Tertunda: {filename} (Server belum diset!)", "error")
-        return
+        add_log(f"Gagal: {filename} (Server belum diset!)", "error")
+        return False
 
-    time.sleep(0.5)
     add_log(f"Mengirim: {filename} -> {target}...", "info")
     
-    # Fungsi send_file di V2 sama persis panggilannya
+    # Proses Kirim (Program akan menunggu di sini sampai selesai/gagal)
     sukses = STATE["client"].send_file(target, filepath)
     
     if sukses:
         add_log(f"✅ Terkirim: {filename}", "success")
         try: os.remove(filepath)
         except: pass
+        return True
     else:
-        add_log(f"❌ Gagal mengirim: {filename} (Auth/Koneksi Gagal)", "error")
+        # Error detail sudah dicetak oleh bproto ke console
+        add_log(f"❌ Gagal mengirim: {filename} (Cek koneksi/Firewall)", "error")
+        return False
 
 # --- ROUTES ---
 @app.route('/')
@@ -61,9 +68,8 @@ def index():
 
 @app.route('/api/scan')
 def api_scan():
-    STATE["client"].scan() # Memanggil Discovery Module
-    time.sleep(1.0)
-    # STATE["client"].peers terhubung langsung ke DiscoveryManager.peers
+    STATE["client"].scan()
+    time.sleep(1.0) 
     return jsonify(STATE["client"].peers)
 
 @app.route('/api/set_server', methods=['POST'])
@@ -75,12 +81,8 @@ def api_set_server():
         return jsonify({"status": "error", "message": "Format IP Salah"}), 400
         
     STATE["target_ip"] = ip
-
-    # Manual Injection tetap berfungsi di V2
+    # Inject Manual Peer (Port Default 7002)
     STATE["client"].peers[ip] = {"name": "Manual-Server", "port": 7002} 
-    
-    # [OPSIONAL] Test Kirim Pesan Chat (Fitur Baru V2)
-    # STATE["client"].send_message(ip, "Client Photobooth Terhubung!") 
     
     add_log(f"🔗 Target Server manual: {ip} (Port 7002)", "success")
     return jsonify({"status": "ok", "target": ip})
@@ -94,7 +96,9 @@ def api_upload():
     if not STATE["target_ip"]:
         return jsonify({"error": "⚠️ Server Tujuan Belum Dipilih!"}), 400
 
-    count = 0
+    success_count = 0
+    errors = []
+
     for file in files:
         if file.filename == '': continue
         ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else 'jpg'
@@ -104,10 +108,26 @@ def api_upload():
         save_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(save_path)
         
-        threading.Thread(target=process_and_send, args=(save_path, filename)).start()
-        count += 1
+        # --- PERUBAHAN UTAMA DI SINI ---
+        # Kita panggil langsung (tanpa Threading) dan cek hasilnya
+        if send_sync(save_path, filename):
+            success_count += 1
+        else:
+            errors.append(filename)
+            # Jika gagal, file temp mungkin perlu dihapus atau dibiarkan untuk debug
+            # try: os.remove(save_path) 
+            # except: pass
+
+    # Logika Response ke Web
+    if len(errors) > 0:
+        # Jika ada yang gagal, kirim status Error (500) supaya JS menampilkan notif MERAH
+        return jsonify({
+            "status": "error", 
+            "message": f"Gagal mengirim {len(errors)} file. Cek Server!",
+            "failed_files": errors
+        }), 500
         
-    return jsonify({"status": "ok", "count": count})
+    return jsonify({"status": "ok", "count": success_count})
 
 @app.route('/api/logs')
 def api_logs():
