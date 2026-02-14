@@ -111,8 +111,10 @@ class ServerManager:
 
     def _get_local_offset(self, header):
         if header.get('type') != PacketType.FILE_INIT: return 0
-        return self.transfer.receive_stream.__getattribute__('__defaults__') # Placeholder, logic asli di transfer.py
-        # Simplifikasi: Cek file size lokal
+        
+        # Logic yang benar: Cek ukuran file yang sudah ada
         fname = header['file']['name']
         fpath = os.path.join(self.transfer.save_dir, fname)
+        
+        # Jika file ada, return ukurannya (int). Jika tidak, return 0.
         return os.path.getsize(fpath) if os.path.exists(fpath) else 0
