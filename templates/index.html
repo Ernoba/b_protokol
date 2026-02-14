@@ -3,627 +3,617 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Ernoba Photobooth Pro</title>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700;800&display=swap" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <title>PhotoboothSongo by Ernoba</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-gradient: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
-            --primary: #00f2ff;
-            --accent: #ff0055;
-            --text: #ffffff;
-            --glass: rgba(20, 20, 30, 0.85);
-            --glass-border: rgba(255, 255, 255, 0.2);
+            --primary: #4A90E2; /* Biru Cerah */
+            --accent: #FF6B6B;  /* Merah Muda Cerah */
+            --bg-body: #F7F9FC;
+            --bg-card: #FFFFFF;
+            --text-main: #2C3E50;
+            --text-sub: #7F8C8D;
+            --shadow: 0 10px 30px rgba(0,0,0,0.08);
+            --radius: 20px;
         }
 
         * { box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
 
         body {
             margin: 0; padding: 0;
-            background: var(--bg-gradient);
-            color: var(--text);
-            font-family: 'Outfit', sans-serif;
+            background: var(--bg-body);
+            font-family: 'Poppins', sans-serif;
+            color: var(--text-main);
             height: 100vh;
+            overflow: hidden;
             display: flex;
             flex-direction: column;
-            overflow: hidden;
         }
 
-        /* --- HEADER --- */
-        .top-bar {
-            padding: 15px 20px;
+        /* --- LAYOUT UTAMA (SLIDER) --- */
+        .main-container {
+            display: flex;
+            width: 300vw; /* 3 Layar Lebar */
+            height: 100%;
+            transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+            transform: translateX(-100vw); /* Mulai di tengah (Kamera) */
+        }
+
+        .page {
+            width: 100vw;
+            height: 100%;
+            position: relative;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- HALAMAN 1: AUTHOR (KIRI) --- */
+        .page-author {
+            background: var(--bg-card);
+            padding: 40px 20px;
+            display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;
+        }
+        .author-card {
+            background: #fff;
+            padding: 30px;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            max-width: 400px; width: 100%;
+        }
+        .author-card h2 { color: var(--primary); margin-bottom: 5px; }
+        .tech-stack { display: flex; gap: 10px; justify-content: center; margin-top: 20px; flex-wrap: wrap; }
+        .tech-badge {
+            background: #EEF2F7; color: var(--text-sub);
+            padding: 5px 12px; border-radius: 15px; font-size: 0.8rem; font-weight: 600;
+        }
+
+        /* --- HALAMAN 2: KAMERA (TENGAH) --- */
+        .page-camera {
+            background: #000;
+            position: relative;
+        }
+        .camera-header {
+            position: absolute; top: 0; left: 0; right: 0;
+            padding: 20px; z-index: 10;
             display: flex; justify-content: space-between; align-items: center;
-            background: rgba(0,0,0,0.2); backdrop-filter: blur(10px);
-            z-index: 100; position: absolute; top: 0; left: 0; right: 0;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.6), transparent);
         }
-        .brand { font-size: 1.2rem; font-weight: 800; letter-spacing: 1px; text-shadow: 0 2px 10px rgba(0,0,0,0.5); }
-        .brand span { color: var(--primary); }
+        .brand-pill {
+            background: rgba(255,255,255,0.9); padding: 8px 16px;
+            border-radius: 30px; font-weight: 700; font-size: 0.9rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            color: var(--text-main);
+        }
+        .settings-btn {
+            width: 40px; height: 40px; border-radius: 50%;
+            background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3);
+            color: white; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; backdrop-filter: blur(5px);
+        }
 
-        .status-pill {
-            display: flex; align-items: center; gap: 8px;
-            background: rgba(0,0,0,0.4); padding: 5px 12px;
-            border-radius: 20px; font-size: 0.75rem;
-            cursor: pointer; border: 1px solid rgba(255,255,255,0.1);
-            transition: 0.3s;
+        video {
+            width: 100%; height: 100%; object-fit: cover;
+            transition: opacity 0.3s;
         }
-        .status-pill.connected { border-color: #00ff88; color: #00ff88; background: rgba(0, 255, 136, 0.1); }
-        .status-pill.disconnected { border-color: #ff0055; color: #ff4444; }
-
-        /* --- CAMERA STAGE --- */
-        .camera-wrapper {
-            flex: 1; position: relative; background: #000;
-            display: flex; justify-content: center; align-items: center;
-            overflow: hidden;
-            height: 100%; /* Full height */
-        }
-        video { 
-            width: 100%; height: 100%; 
-            object-fit: cover; 
-            transition: transform 0.5s; 
-        }
-        .mirrored { transform: scaleX(-1); }
-
-        /* OVERLAYS */
-        .countdown-overlay {
-            position: absolute; font-size: 8rem; font-weight: 800;
-            color: white; text-shadow: 0 0 30px rgba(0,0,0,0.5);
-            opacity: 0; transform: scale(0.5); transition: all 0.2s;
-            pointer-events: none; z-index: 20;
-            display: flex; justify-content: center; align-items: center; inset: 0;
-        }
-        .flash {
+        .flash-overlay {
             position: absolute; inset: 0; background: white;
-            opacity: 0; pointer-events: none; z-index: 30; transition: opacity 0.15s;
+            opacity: 0; pointer-events: none; z-index: 50; transition: opacity 0.1s;
         }
 
-        /* --- FLOATING CONTROLS --- */
-        .controls {
-            position: absolute; bottom: 180px; /* Di atas drawer */
-            left: 0; right: 0;
-            display: flex; justify-content: center; align-items: center; gap: 30px;
-            z-index: 10;
-            pointer-events: none; /* Biar area kosong tembus */
+        /* Kontrol Bawah Kamera */
+        .camera-controls {
+            position: absolute; bottom: 30px; left: 0; right: 0;
+            display: flex; justify-content: space-evenly; align-items: center;
+            z-index: 20;
         }
-        .controls > * { pointer-events: auto; } /* Aktifkan klik pada tombol */
-
-        .btn-round {
-            width: 45px; height: 45px; border-radius: 50%;
-            border: none; background: rgba(0,0,0,0.5);
-            color: white; font-size: 1.1rem; cursor: pointer;
-            backdrop-filter: blur(5px); transition: 0.2s;
-            display: flex; justify-content: center; align-items: center;
-            border: 1px solid rgba(255,255,255,0.2);
-        }
-        .btn-round:active { transform: scale(0.9); background: var(--primary); color: black; }
         
-        .shutter-ring {
-            width: 75px; height: 75px; border-radius: 50%;
-            border: 4px solid rgba(255,255,255,0.8); 
-            display: flex; justify-content: center; align-items: center;
-            cursor: pointer; transition: 0.2s;
-            box-shadow: 0 0 20px rgba(0,0,0,0.3);
-            background: rgba(0,0,0,0.2);
+        .btn-control {
+            width: 50px; height: 50px; border-radius: 50%;
+            background: rgba(255,255,255,0.9); border: none;
+            color: var(--text-main); font-size: 1.2rem;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            cursor: pointer; transition: transform 0.2s;
+            display: flex; align-items: center; justify-content: center;
         }
-        .shutter-btn {
-            width: 55px; height: 55px; background: white; border-radius: 50%;
+        .btn-control:active { transform: scale(0.9); }
+
+        .shutter-outer {
+            width: 80px; height: 80px; border-radius: 50%;
+            border: 4px solid white;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+        }
+        .shutter-inner {
+            width: 65px; height: 65px; background: white; border-radius: 50%;
             transition: 0.2s;
         }
-        .shutter-ring:active .shutter-btn { transform: scale(0.85); background: var(--accent); }
+        .shutter-outer:active .shutter-inner { transform: scale(0.85); background: var(--primary); }
 
-        /* --- GALLERY DRAWER (Fixed) --- */
-        .drawer {
-            height: 150px; /* Tinggi pasti */
-            background: var(--glass);
-            backdrop-filter: blur(20px);
-            border-top: 1px solid var(--glass-border);
-            display: flex; flex-direction: column;
-            z-index: 50;
-            position: relative;
-            box-shadow: 0 -10px 30px rgba(0,0,0,0.5);
+        /* Navigasi Samping (Panah) */
+        .nav-hint {
+            position: absolute; top: 50%; transform: translateY(-50%);
+            color: white; font-size: 2rem; opacity: 0.5; z-index: 15;
+            cursor: pointer; padding: 20px;
         }
-        .drawer-header {
-            padding: 8px 15px; display: flex; justify-content: space-between; align-items: center;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-            height: 45px;
-        }
-        .send-btn {
-            background: var(--primary); color: #000; border: none;
-            padding: 6px 18px; border-radius: 20px; font-weight: 700; font-size: 0.85rem;
-            cursor: pointer; opacity: 0.5; pointer-events: none;
-            box-shadow: 0 0 15px rgba(0, 242, 255, 0.2);
-            transition: 0.3s;
-            display: flex; align-items: center; gap: 8px;
-        }
-        .send-btn.active { opacity: 1; pointer-events: all; box-shadow: 0 0 20px rgba(0, 242, 255, 0.5); }
+        .nav-left { left: 0; }
+        .nav-right { right: 0; }
 
-        .gallery-track {
-            display: flex; gap: 10px; padding: 12px; 
-            overflow-x: auto; overflow-y: hidden;
-            height: 105px; /* Sisa tinggi drawer */
-            scroll-behavior: smooth;
-            align-items: center;
+        /* --- HALAMAN 3: GALERI (KANAN) --- */
+        .page-gallery {
+            background: var(--bg-body);
+            padding: 20px;
         }
+        .gallery-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px; border-bottom: 1px solid #ddd;
+        }
+        .gallery-grid {
+            display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;
+            overflow-y: auto; flex: 1; padding-bottom: 80px;
+        }
+        .photo-card {
+            background: white; border-radius: 15px; overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05); position: relative;
+            animation: popUp 0.3s ease;
+        }
+        .photo-card img { width: 100%; aspect-ratio: 3/4; object-fit: cover; display: block; }
         
-        /* Scrollbar styling */
-        .gallery-track::-webkit-scrollbar { height: 4px; }
-        .gallery-track::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 4px; }
-
-        .photo-thumb {
-            min-width: 80px; width: 80px; height: 80px; 
-            border-radius: 10px; overflow: hidden; position: relative;
-            border: 2px solid rgba(255,255,255,0.3); 
-            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            flex-shrink: 0; cursor: pointer;
-            transition: transform 0.2s;
-        }
-        .photo-thumb:active { transform: scale(0.95); }
-        .photo-thumb img { width: 100%; height: 100%; object-fit: cover; }
-        .photo-thumb .badge-count {
-            position: absolute; bottom: 2px; right: 2px; 
-            font-size: 9px; background: rgba(0,0,0,0.6); color: white;
-            padding: 2px 4px; border-radius: 4px;
+        .delete-btn {
+            position: absolute; top: 5px; right: 5px;
+            width: 30px; height: 30px; background: rgba(255, 255, 255, 0.9);
+            color: var(--accent); border-radius: 50%; border: none;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         }
 
-        /* --- PREVIEW MODAL (LIGHTBOX) --- */
-        .preview-modal {
-            position: fixed; inset: 0; background: rgba(0,0,0,0.95);
-            z-index: 300; display: none; flex-direction: column;
-            justify-content: center; align-items: center;
-            animation: fadeIn 0.2s;
+        .gallery-footer {
+            position: fixed; bottom: 20px; right: 20px; left: 320px; /* Adjust for layout logic */
+            left: calc(200vw + 20px); /* Trik posisi fix di page 3 */
+            width: calc(100vw - 40px);
+            display: flex; gap: 10px;
+            z-index: 100;
         }
-        .preview-img-container {
-            flex: 1; width: 100%; display: flex; justify-content: center; align-items: center;
-            padding: 20px; overflow: hidden;
+
+        .btn-upload {
+            flex: 1; background: var(--primary); color: white;
+            border: none; padding: 15px; border-radius: 15px;
+            font-weight: 700; font-size: 1rem;
+            box-shadow: 0 5px 20px rgba(74, 144, 226, 0.4);
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+            cursor: pointer;
         }
-        .preview-img {
-            max-width: 100%; max-height: 80vh; 
-            border-radius: 8px; box-shadow: 0 0 30px rgba(0,0,0,0.5);
+        .btn-back {
+            background: white; color: var(--text-main); width: 50px;
+            border-radius: 15px; border: none; font-size: 1.2rem;
+            box-shadow: var(--shadow); cursor: pointer;
         }
-        .preview-controls {
-            height: 80px; width: 100%; display: flex; 
-            justify-content: center; align-items: center; gap: 20px;
-            padding-bottom: 20px;
-        }
-        .btn-preview {
-            width: 50px; height: 50px; border-radius: 50%; border: none;
-            color: white; font-size: 1.2rem; cursor: pointer;
-            display: flex; justify-content: center; align-items: center;
-        }
-        .btn-delete { background: rgba(255, 0, 85, 0.2); color: #ff0055; border: 1px solid #ff0055; }
-        .btn-close { background: rgba(255, 255, 255, 0.2); }
 
         /* --- SETTINGS MODAL --- */
-        .modal-overlay {
-            position: fixed; inset: 0; background: rgba(0,0,0,0.8);
-            backdrop-filter: blur(8px); z-index: 200;
-            display: none; justify-content: center; align-items: center;
-        }
         .modal {
-            background: #1e1e2f; width: 85%; max-width: 350px;
-            padding: 25px; border-radius: 20px; border: 1px solid var(--glass-border);
-            box-shadow: 0 20px 50px rgba(0,0,0,0.6);
-            animation: slideUp 0.3s;
+            position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200;
+            display: none; align-items: center; justify-content: center; backdrop-filter: blur(5px);
         }
-        .modal h2 { margin-top: 0; color: var(--primary); font-size: 1.2rem; border-bottom: 1px solid #333; padding-bottom: 10px;}
-        .setting-group { margin-bottom: 15px; }
-        .setting-label { display: block; margin-bottom: 8px; font-size: 0.85rem; color: #aaa; font-weight: 500;}
-        
-        input[type="text"], select {
-            width: 100%; padding: 12px; background: #111;
-            border: 1px solid #444; border-radius: 8px; color: white; outline: none;
-            font-size: 0.9rem;
+        .modal-box {
+            background: white; width: 85%; max-width: 320px; padding: 25px;
+            border-radius: 20px; box-shadow: 0 20px 50px rgba(0,0,0,0.2);
         }
-        
-        .toggle-group { display: flex; gap: 5px; background: #111; padding: 4px; border-radius: 10px; }
-        .toggle-btn {
-            flex: 1; padding: 8px; text-align: center; border-radius: 6px; 
-            cursor: pointer; font-size: 0.8rem; color: #666; transition: 0.2s;
+        .input-group { margin-bottom: 15px; }
+        .input-group input {
+            width: 100%; padding: 12px; border: 1px solid #ddd;
+            border-radius: 8px; outline: none; background: #f9f9f9;
         }
-        .toggle-btn.active { background: var(--accent); color: white; font-weight: bold; }
+        .btn-save {
+            width: 100%; padding: 12px; background: var(--text-main);
+            color: white; border: none; border-radius: 10px; font-weight: 600;
+        }
 
-        @keyframes popIn { from { transform: scale(0); } to { transform: scale(1); } }
-        @keyframes slideUp { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        /* Helper */
+        .hidden { display: none !important; }
+        @keyframes popUp { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        /* Responsive Fix untuk Footer Gallery */
+        @media screen and (max-width: 768px) {
+            .gallery-footer { left: calc(200vw + 20px); }
+        }
     </style>
 </head>
 <body>
 
-    <div class="top-bar">
-        <div class="brand"><i class="fas fa-camera-retro"></i> ERNOBA<span>BOOTH</span></div>
-        <div style="display: flex; gap: 10px;">
-            <div class="status-pill disconnected" onclick="openSettings()" id="statusPill">
-                <i class="fas fa-plug"></i> <span id="statusText">Offline</span>
-            </div>
-            <button class="btn-round" style="width:32px; height:32px; font-size:0.9rem;" onclick="openSettings()"><i class="fas fa-cog"></i></button>
-        </div>
-    </div>
-
-    <div class="camera-wrapper">
-        <video id="videoFeed" autoplay playsinline class="mirrored"></video>
-        <div id="flash" class="flash"></div>
-        <div id="countdown" class="countdown-overlay">3</div>
+    <div class="main-container" id="mainContainer">
         
-        <div class="controls">
-            <button class="btn-round" onclick="toggleTimer()" id="timerBtn">
-                <span id="timerBadge" style="font-weight: bold; font-size: 0.8rem;">OFF</span>
-            </button>
-            
-            <div class="shutter-ring" onclick="startCaptureFlow()">
-                <div class="shutter-btn"></div>
-            </div>
-
-            <button class="btn-round" onclick="switchCamera()">
-                <i class="fas fa-sync-alt"></i>
-            </button>
-        </div>
-    </div>
-
-    <div class="drawer">
-        <div class="drawer-header">
-            <span style="font-size: 0.9rem; color: #aaa;">
-                <i class="fas fa-images"></i> Terambil: <b style="color:white" id="count">0</b>
-            </span>
-            <button id="sendBtn" class="send-btn" onclick="uploadFiles()">
-                KIRIM SEMUA <i class="fas fa-paper-plane"></i>
-            </button>
-        </div>
-        <div class="gallery-track" id="gallery">
-            <div style="color: #555; font-size: 0.8rem; padding: 0 10px; white-space: nowrap;">Belum ada foto.</div>
-        </div>
-    </div>
-
-    <div class="preview-modal" id="previewModal">
-        <div class="preview-img-container">
-            <img id="previewImg" class="preview-img" src="">
-        </div>
-        <div class="preview-controls">
-            <button class="btn-preview btn-close" onclick="closePreview()">
-                <i class="fas fa-arrow-left"></i>
-            </button>
-            <button class="btn-preview btn-delete" onclick="deleteCurrentPreview()">
-                <i class="fas fa-trash"></i>
-            </button>
-        </div>
-    </div>
-
-    <div class="modal-overlay" id="settingsModal">
-        <div class="modal">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-                <h2>Pengaturan</h2>
-                <i class="fas fa-times" onclick="closeSettings()" style="color:#666; cursor:pointer;"></i>
-            </div>
-            
-            <div class="setting-group">
-                <label class="setting-label">Koneksi Server</label>
-                <div style="display: flex; gap: 8px; margin-bottom: 10px;">
-                    <select id="scanList" onchange="useScannedIp()">
-                        <option value="">-- Scan Server --</option>
-                    </select>
-                    <button style="background:var(--primary); border:none; border-radius:6px; width:40px;" onclick="scanServers()"><i class="fas fa-redo"></i></button>
+        <div class="page page-author">
+            <div class="author-card">
+                <i class="fas fa-camera-retro" style="font-size: 3rem; color: var(--primary); margin-bottom: 20px;"></i>
+                <h2>PhotoboothSongo</h2>
+                <p style="color: var(--text-sub); margin: 0;">By Ernoba Creative</p>
+                <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+                <p style="font-size: 0.9rem;">
+                    Aplikasi photobooth berbasis web modern dengan kualitas tangkapan gambar asli tanpa kompresi. Dibuat untuk kecepatan dan kemudahan.
+                </p>
+                <div class="tech-stack">
+                    <span class="tech-badge">HTML5</span>
+                    <span class="tech-badge">Vanilla JS</span>
+                    <span class="tech-badge">Canvas API</span>
+                    <span class="tech-badge">CSS3 Flex</span>
                 </div>
+                <button class="btn-control" style="width:100%; border-radius: 10px; margin-top:20px; background: var(--primary); color: white;" onclick="goToCamera()">
+                    Mulai Foto
+                </button>
+            </div>
+        </div>
+
+        <div class="page page-camera">
+            <div class="camera-header">
+                <div class="settings-btn" onclick="toggleSettings()"><i class="fas fa-cog"></i></div>
+                <div class="brand-pill">ERNOBA</div>
+                <div class="settings-btn" id="connectionStatus" style="background: #ff4757;"><i class="fas fa-wifi"></i></div>
+            </div>
+
+            <video id="videoFeed" autoplay playsinline muted></video>
+            <div id="flash" class="flash-overlay"></div>
+
+            <div class="nav-hint nav-left" onclick="slide(0)"><i class="fas fa-chevron-left"></i></div>
+            <div class="nav-hint nav-right" onclick="slide(2)"><i class="fas fa-images"></i></div>
+
+            <div class="camera-controls">
+                <button class="btn-control" onclick="nextCamera()">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
                 
-                <label class="setting-label">IP Manual</label>
-                <div style="display: flex; gap: 8px;">
-                    <input type="text" id="manualIp" placeholder="192.168.x.x">
-                    <button style="background:#333; color:white; border:none; border-radius:6px; width:40px;" onclick="setManualIp()"><i class="fas fa-save"></i></button>
+                <div class="shutter-outer" onclick="capturePhoto()">
+                    <div class="shutter-inner"></div>
+                </div>
+
+                <button class="btn-control" onclick="toggleTimer()" id="timerBtn">
+                    <span style="font-weight:bold; font-size:0.8rem;">OFF</span>
+                </button>
+            </div>
+            
+            <div id="countdownDisplay" style="position: absolute; top:50%; left:50%; transform:translate(-50%, -50%); font-size:6rem; color:white; font-weight:bold; display:none; text-shadow: 0 0 20px rgba(0,0,0,0.5);">3</div>
+        </div>
+
+        <div class="page page-gallery">
+            <div class="gallery-header">
+                <h2 style="margin:0;">Galeri Foto</h2>
+                <span id="photoCount" style="color: var(--text-sub);">0 Foto</span>
+            </div>
+
+            <div class="gallery-grid" id="galleryGrid">
+                <div style="grid-column: span 2; text-align: center; color: #aaa; margin-top: 50px;">
+                    <i class="fas fa-image" style="font-size: 3rem; margin-bottom: 10px; display:block;"></i>
+                    Belum ada foto diambil.
                 </div>
             </div>
 
-            <div class="setting-group">
-                <label class="setting-label">Efek Cermin (Kamera Depan)</label>
-                <div class="toggle-group">
-                    <div class="toggle-btn active" onclick="toggleMirror(true, this)">ON</div>
-                    <div class="toggle-btn" onclick="toggleMirror(false, this)">OFF</div>
-                </div>
-            </div>
-
-            <div style="text-align: center; margin-top: 20px; font-size: 0.7rem; color: #555;">
-                ERNOBA PHOTOBOOTH v2.0
+            <div class="gallery-footer">
+                <button class="btn-back" onclick="goToCamera()"><i class="fas fa-camera"></i></button>
+                <button class="btn-upload" onclick="uploadAllPhotos()" id="uploadBtn">
+                    KIRIM KE SERVER <i class="fas fa-paper-plane"></i>
+                </button>
             </div>
         </div>
     </div>
 
-    <canvas id="canvas" style="display:none;"></canvas>
+    <div class="modal" id="settingsModal">
+        <div class="modal-box">
+            <h3 style="margin-top:0;">Pengaturan Server</h3>
+            <div class="input-group">
+                <label style="display:block; margin-bottom:5px; font-size:0.9rem;">IP Server Target</label>
+                <input type="text" id="serverIpInput" placeholder="Contoh: 192.168.1.5">
+            </div>
+            <div style="display:flex; gap:10px;">
+                <button class="btn-save" style="background:#ddd; color:#333;" onclick="toggleSettings()">Batal</button>
+                <button class="btn-save" style="background:var(--primary);" onclick="saveSettings()">Simpan</button>
+            </div>
+        </div>
+    </div>
+
+    <canvas id="captureCanvas" style="display:none;"></canvas>
 
     <script>
-        // --- VARIABLES ---
-        let stream = null;
-        let facingMode = 'user';
-        let capturedBlobs = []; // Array storing {id, blob}
-        let timerDuration = 0;
-        let serverIp = null;
-        let isMirrored = true;
-        let currentPreviewId = null;
+        // --- STATE VARIABLES ---
+        let currentStream = null;
+        let videoDevices = [];
+        let currentDeviceIndex = 0;
+        let photos = []; // { id, blob, url }
+        let serverIp = localStorage.getItem('ernoba_server_ip') || '';
+        let timerSeconds = 0;
+        let viewIndex = 1; // 0=Info, 1=Camera, 2=Gallery
 
-        // --- CAMERA SYSTEM ---
-        async function initCamera() {
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop());
-            }
-            try {
-                const constraints = {
-                    video: {
-                        facingMode: facingMode,
-                        width: { ideal: 1280 }, // Optimize for mobile performance
-                        height: { ideal: 720 }
-                    },
-                    audio: false
-                };
-                stream = await navigator.mediaDevices.getUserMedia(constraints);
-                document.getElementById('videoFeed').srcObject = stream;
-            } catch (err) {
-                alert("Gagal membuka kamera: " + err);
-            }
-        }
+        // --- DOM ELEMENTS ---
+        const videoElement = document.getElementById('videoFeed');
+        const canvasElement = document.getElementById('captureCanvas');
+        const mainContainer = document.getElementById('mainContainer');
 
-        function switchCamera() {
-            facingMode = facingMode === 'user' ? 'environment' : 'user';
-            // Auto-disable mirror for back camera
-            if (facingMode === 'environment') {
-                toggleMirror(false, document.querySelectorAll('.toggle-group')[1].children[1]);
-            } else {
-                toggleMirror(true, document.querySelectorAll('.toggle-group')[1].children[0]);
-            }
-            initCamera();
-        }
-
-        function toggleMirror(state, btnElement) {
-            isMirrored = state;
-            const video = document.getElementById('videoFeed');
-            if (isMirrored) video.classList.add('mirrored');
-            else video.classList.remove('mirrored');
-
-            if(btnElement) {
-                const group = btnElement.parentElement;
-                Array.from(group.children).forEach(c => c.classList.remove('active'));
-                btnElement.classList.add('active');
-            }
-        }
-
-        // --- TIMER LOGIC ---
-        function toggleTimer() {
-            // Cycle: 0 -> 3 -> 5 -> 0
-            if(timerDuration === 0) timerDuration = 3;
-            else if(timerDuration === 3) timerDuration = 5;
-            else timerDuration = 0;
-
-            const badge = document.getElementById('timerBadge');
-            badge.innerText = timerDuration === 0 ? "OFF" : timerDuration + "s";
-            badge.style.color = timerDuration === 0 ? "white" : "var(--primary)";
-        }
-
-        // --- CAPTURE LOGIC ---
-        function startCaptureFlow() {
-            if (timerDuration === 0) {
-                takePhoto();
-                return;
-            }
-
-            const overlay = document.getElementById('countdown');
-            let count = timerDuration;
+        // --- INIT ---
+        window.addEventListener('load', async () => {
+            await getCameraDevices();
+            startCamera();
+            updateConnectionIcon();
             
-            overlay.innerText = count;
-            overlay.style.opacity = '1';
-            overlay.style.transform = 'scale(1.2)';
+            // Swipe Gesture Sederhana
+            let touchStartX = 0;
+            let touchEndX = 0;
+            
+            document.body.addEventListener('touchstart', e => {
+                touchStartX = e.changedTouches[0].screenX;
+            });
+            
+            document.body.addEventListener('touchend', e => {
+                touchEndX = e.changedTouches[0].screenX;
+                handleSwipe();
+            });
 
-            const interval = setInterval(() => {
+            function handleSwipe() {
+                if (touchStartX - touchEndX > 70) {
+                    // Geser ke Kiri (Next Page)
+                    if(viewIndex < 2) slide(viewIndex + 1);
+                }
+                if (touchEndX - touchStartX > 70) {
+                    // Geser ke Kanan (Prev Page)
+                    if(viewIndex > 0) slide(viewIndex - 1);
+                }
+            }
+        });
+
+        // --- NAVIGATION ---
+        function slide(index) {
+            viewIndex = index;
+            const translate = -(index * 100);
+            mainContainer.style.transform = `translateX(${translate}vw)`;
+        }
+
+        function goToCamera() { slide(1); }
+
+        // --- CAMERA SYSTEM (PERBAIKAN FITUR) ---
+        async function getCameraDevices() {
+            try {
+                // Meminta izin dulu
+                await navigator.mediaDevices.getUserMedia({ video: true });
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                videoDevices = devices.filter(device => device.kind === 'videoinput');
+                
+                // Urutkan: Belakang dulu biasanya lebih bagus, tapi kita default user (depan) dulu jika ada
+                // Logika: Cari keyword 'front' atau 'user' untuk start awal
+                const frontCam = videoDevices.findIndex(d => d.label.toLowerCase().includes('front') || d.label.toLowerCase().includes('user'));
+                if (frontCam !== -1) currentDeviceIndex = frontCam;
+                
+            } catch (err) {
+                alert("Tidak dapat mengakses kamera. Pastikan izin diberikan.");
+                console.error(err);
+            }
+        }
+
+        async function startCamera() {
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+            }
+
+            if (videoDevices.length === 0) return;
+
+            const deviceId = videoDevices[currentDeviceIndex].deviceId;
+            
+            const constraints = {
+                video: {
+                    deviceId: { exact: deviceId },
+                    // Meminta resolusi setinggi mungkin (4K preference) -> Browser akan downscale jika tidak mampu
+                    width: { ideal: 4096 },
+                    height: { ideal: 2160 }
+                }
+            };
+
+            try {
+                currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+                videoElement.srcObject = currentStream;
+                
+                // Mirror effect logic: Jika label kamera mengandung 'front', mirror on.
+                const label = videoDevices[currentDeviceIndex].label.toLowerCase();
+                if (label.includes('front') || label.includes('depan') || label.includes('user')) {
+                    videoElement.style.transform = "scaleX(-1)";
+                } else {
+                    videoElement.style.transform = "scaleX(1)";
+                }
+
+            } catch (err) {
+                console.error("Gagal start camera:", err);
+                alert("Gagal memuat kamera ini.");
+            }
+        }
+
+        function nextCamera() {
+            if (videoDevices.length < 2) return; // Cuma 1 kamera
+            currentDeviceIndex = (currentDeviceIndex + 1) % videoDevices.length;
+            startCamera();
+        }
+
+        function toggleTimer() {
+            if (timerSeconds === 0) timerSeconds = 3;
+            else if (timerSeconds === 3) timerSeconds = 5;
+            else timerSeconds = 0;
+
+            const btn = document.getElementById('timerBtn');
+            btn.innerHTML = timerSeconds === 0 
+                ? '<span style="font-weight:bold; font-size:0.8rem;">OFF</span>' 
+                : `<span style="font-weight:bold; color:var(--primary);">${timerSeconds}s</span>`;
+        }
+
+        // --- CAPTURE & HIGH QUALITY LOGIC ---
+        function capturePhoto() {
+            if (timerSeconds > 0) {
+                runTimerAndSnap();
+            } else {
+                snap();
+            }
+        }
+
+        function runTimerAndSnap() {
+            const display = document.getElementById('countdownDisplay');
+            let count = timerSeconds;
+            display.innerText = count;
+            display.style.display = 'block';
+            
+            const intv = setInterval(() => {
                 count--;
                 if (count > 0) {
-                    overlay.innerText = count;
+                    display.innerText = count;
                 } else {
-                    clearInterval(interval);
-                    overlay.style.opacity = '0';
-                    overlay.style.transform = 'scale(0.5)';
-                    takePhoto();
+                    clearInterval(intv);
+                    display.style.display = 'none';
+                    snap();
                 }
             }, 1000);
         }
 
-        function takePhoto() {
-            const video = document.getElementById('videoFeed');
-            const canvas = document.getElementById('canvas');
-            const ctx = canvas.getContext('2d');
-            
-            // Flash Effect
+        function snap() {
+            // Animasi Flash
             const flash = document.getElementById('flash');
-            flash.style.opacity = '1';
-            setTimeout(() => flash.style.opacity = '0', 100);
+            flash.style.opacity = 1;
+            setTimeout(() => flash.style.opacity = 0, 150);
 
-            // Capture
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
+            // Setup Canvas Full Resolution
+            const width = videoElement.videoWidth;
+            const height = videoElement.videoHeight;
+            
+            canvasElement.width = width;
+            canvasElement.height = height;
+            
+            const ctx = canvasElement.getContext('2d');
 
-            if (isMirrored) {
-                ctx.translate(canvas.width, 0);
+            // Cek apakah mode mirror aktif di CSS
+            if (videoElement.style.transform.includes('scaleX(-1)')) {
+                ctx.translate(width, 0);
                 ctx.scale(-1, 1);
             }
 
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            ctx.drawImage(videoElement, 0, 0, width, height);
 
-            canvas.toBlob(blob => {
-                const newId = Date.now();
-                capturedBlobs.push({ id: newId, blob: blob });
-                updateGallery();
+            // Convert to Blob High Quality
+            canvasElement.toBlob(blob => {
+                const id = Date.now();
+                const url = URL.createObjectURL(blob);
+                photos.push({ id, blob, url });
                 
-                // Auto scroll to latest
-                setTimeout(() => {
-                    const track = document.getElementById('gallery');
-                    track.scrollLeft = track.scrollWidth;
-                }, 100);
-
-            }, 'image/jpeg', 0.95);
+                renderGallery();
+                // Opsional: Langsung geser ke galeri? Tidak usah biar bisa foto lagi cepat.
+                // Tampilkan notifikasi kecil/toast jika perlu.
+            }, 'image/jpeg', 1.0); // Kualitas 1.0 = Max
         }
 
-        // --- GALLERY & PREVIEW ---
-        function updateGallery() {
-            const track = document.getElementById('gallery');
-            const countEl = document.getElementById('count');
-            const btn = document.getElementById('sendBtn');
+        // --- GALLERY & SERVER ---
+        function renderGallery() {
+            const grid = document.getElementById('galleryGrid');
+            const countLabel = document.getElementById('photoCount');
             
-            track.innerHTML = '';
-            
-            if (capturedBlobs.length === 0) {
-                track.innerHTML = '<div style="color: #888; font-size: 0.8rem; margin: auto;">Belum ada foto</div>';
-                btn.classList.remove('active');
-                countEl.innerText = '0';
+            grid.innerHTML = '';
+            countLabel.innerText = `${photos.length} Foto`;
+
+            if (photos.length === 0) {
+                grid.innerHTML = `
+                    <div style="grid-column: span 2; text-align: center; color: #aaa; margin-top: 50px;">
+                        <i class="fas fa-image" style="font-size: 3rem; margin-bottom: 10px; display:block;"></i>
+                        Belum ada foto diambil.
+                    </div>`;
                 return;
             }
 
-            capturedBlobs.forEach((item, index) => {
-                const url = URL.createObjectURL(item.blob);
+            // Loop terbalik agar foto terbaru di atas
+            [...photos].reverse().forEach(photo => {
                 const div = document.createElement('div');
-                div.className = 'photo-thumb';
-                // Click to open preview
-                div.onclick = () => openPreview(item.id);
-                
+                div.className = 'photo-card';
                 div.innerHTML = `
-                    <img src="${url}">
-                    <div class="badge-count">#${index+1}</div>
+                    <img src="${photo.url}">
+                    <button class="delete-btn" onclick="deletePhoto(${photo.id})"><i class="fas fa-times"></i></button>
                 `;
-                track.appendChild(div);
+                grid.appendChild(div);
             });
-
-            countEl.innerText = capturedBlobs.length;
-            if(serverIp) btn.classList.add('active');
         }
 
-        function openPreview(id) {
-            const item = capturedBlobs.find(i => i.id === id);
-            if(!item) return;
-
-            currentPreviewId = id;
-            const modal = document.getElementById('previewModal');
-            const img = document.getElementById('previewImg');
-            
-            img.src = URL.createObjectURL(item.blob);
-            modal.style.display = 'flex';
-        }
-
-        function closePreview() {
-            document.getElementById('previewModal').style.display = 'none';
-            currentPreviewId = null;
-        }
-
-        function deleteCurrentPreview() {
-            if(!currentPreviewId) return;
+        function deletePhoto(id) {
             if(!confirm("Hapus foto ini?")) return;
-
-            capturedBlobs = capturedBlobs.filter(i => i.id !== currentPreviewId);
-            updateGallery();
-            closePreview();
+            photos = photos.filter(p => p.id !== id);
+            renderGallery();
         }
 
-        // --- NETWORKING ---
-        function openSettings() { document.getElementById('settingsModal').style.display = 'flex'; }
-        function closeSettings() { document.getElementById('settingsModal').style.display = 'none'; }
-
-        function scanServers() {
-            const sel = document.getElementById('scanList');
-            sel.innerHTML = '<option>Scanning...</option>';
-            fetch('/api/scan').then(r=>r.json()).then(data => {
-                sel.innerHTML = '<option value="">-- Pilih Server --</option>';
-                // Handle dict or list format
-                const items = Array.isArray(data) ? data : Object.entries(data);
-                
-                if (items.length === 0) {
-                    sel.innerHTML = '<option value="">Tidak ditemukan</option>';
-                    return;
-                }
-
-                if (Array.isArray(data)) {
-                    // If your backend returns list
-                     data.forEach(srv => {
-                        sel.innerHTML += `<option value="${srv.ip}">${srv.name} (${srv.ip})</option>`;
-                     });
-                } else {
-                    // If backend returns dict {ip: {name...}}
-                    for (const [ip, info] of Object.entries(data)) {
-                        sel.innerHTML += `<option value="${ip}">${info.name} (${ip})</option>`;
-                    }
-                }
-            }).catch(e => {
-                sel.innerHTML = '<option value="">Error Scan</option>';
-            });
-        }
-
-        function useScannedIp() {
-            const sel = document.getElementById('scanList');
-            if(sel.value) setServerIp(sel.value);
-        }
-
-        function setManualIp() {
-            const val = document.getElementById('manualIp').value;
-            if(val) setServerIp(val);
-        }
-
-        function setServerIp(ip) {
-            fetch('/api/set_server', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ip: ip})
-            })
-            .then(r => r.json())
-            .then(res => {
-                if(res.status === 'ok') {
-                    serverIp = ip;
-                    updateStatusUI(true, `Connected: ${ip}`);
-                    closeSettings();
-                    updateGallery();
-                    alert("Terhubung ke " + ip);
-                } else {
-                    alert("Error: " + res.message);
-                }
-            });
-        }
-
-        function updateStatusUI(connected, text) {
-            const pill = document.getElementById('statusPill');
-            const label = document.getElementById('statusText');
-            if(connected) {
-                pill.className = 'status-pill connected';
-                label.innerText = "Online";
-                pill.onclick = () => alert(text);
-            } else {
-                pill.className = 'status-pill disconnected';
-                label.innerText = "Offline";
+        function toggleSettings() {
+            const modal = document.getElementById('settingsModal');
+            if (modal.style.display === 'flex') modal.style.display = 'none';
+            else {
+                document.getElementById('serverIpInput').value = serverIp;
+                modal.style.display = 'flex';
             }
         }
 
-        function uploadFiles() {
-            if(!serverIp) return alert("Pilih server dulu di Pengaturan (Ikon Roda Gigi)");
-            if(capturedBlobs.length === 0) return alert("Belum ada foto yang diambil");
-            
-            const btn = document.getElementById('sendBtn');
-            const originalText = btn.innerHTML;
-            btn.innerHTML = 'Sending... <i class="fas fa-spinner fa-spin"></i>';
-            btn.style.opacity = 0.7;
-            
-            const formData = new FormData();
-            capturedBlobs.forEach((item, i) => {
-                formData.append('file', item.blob, `photo_${i}.jpg`);
-            });
-
-            fetch('/api/upload', {method: 'POST', body: formData})
-            .then(r => r.json())
-            .then(res => {
-                if(res.status === 'ok') {
-                    alert(`✅ Sukses mengirim ${res.count} foto!`);
-                    capturedBlobs = [];
-                    updateGallery();
-                } else {
-                    alert("❌ Gagal: " + (res.error || "Unknown error"));
-                }
-                btn.innerHTML = originalText;
-                btn.style.opacity = 1;
-            })
-            .catch(e => {
-                alert("Gagal koneksi: " + e);
-                btn.innerHTML = originalText;
-            });
+        function saveSettings() {
+            const val = document.getElementById('serverIpInput').value;
+            serverIp = val;
+            localStorage.setItem('ernoba_server_ip', val);
+            toggleSettings();
+            updateConnectionIcon();
+            alert("IP Server tersimpan: " + val);
         }
 
-        // Init
-        initCamera();
+        function updateConnectionIcon() {
+            const icon = document.getElementById('connectionStatus');
+            if (serverIp) {
+                icon.style.background = '#2ecc71'; // Hijau
+            } else {
+                icon.style.background = '#ff4757'; // Merah
+            }
+        }
+
+        async function uploadAllPhotos() {
+            if (!serverIp) {
+                alert("Harap atur IP Server terlebih dahulu di menu pengaturan (Ikon Gear).");
+                return;
+            }
+            if (photos.length === 0) return alert("Tidak ada foto untuk dikirim.");
+
+            const btn = document.getElementById('uploadBtn');
+            const oriText = btn.innerHTML;
+            btn.innerHTML = 'Mengirim... <i class="fas fa-spinner fa-spin"></i>';
+            btn.disabled = true;
+            btn.style.opacity = 0.7;
+
+            const formData = new FormData();
+            photos.forEach((p, i) => {
+                formData.append('files', p.blob, `foto_${p.id}.jpg`);
+            });
+
+            // Pastikan URL endpoint sesuai backend Anda. Biasanya http://IP:PORT/upload
+            // Disini saya asumsikan backend jalan di port 5000 atau default 80
+            // Jika Anda pakai backend Python Flask sebelumnya, sesuaikan.
+            // Saya buat agar mencoba mengirim ke http://[IP]/api/upload
+            
+            let url = `http://${serverIp}/api/upload`;
+            // Jika user memasukkan port di IP (misal 192.168.1.5:5000), biarkan.
+            if(!serverIp.includes('http')) url = `http://${serverIp}/api/upload`;
+
+            try {
+                const res = await fetch(url, {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                
+                if (res.ok) {
+                    alert("Berhasil terkirim!");
+                    photos = []; // Kosongkan setelah kirim
+                    renderGallery();
+                    slide(1); // Kembali ke kamera
+                } else {
+                    throw new Error(data.message || "Gagal kirim");
+                }
+            } catch (err) {
+                alert("Error Upload: " + err.message + "\nCek koneksi atau IP Server.");
+            } finally {
+                btn.innerHTML = oriText;
+                btn.disabled = false;
+                btn.style.opacity = 1;
+            }
+        }
     </script>
 </body>
 </html>
