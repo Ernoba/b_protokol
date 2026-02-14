@@ -9,14 +9,14 @@
     <style>
         :root {
             --bg-gradient: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
-            --glass: rgba(255, 255, 255, 0.1);
-            --glass-border: rgba(255, 255, 255, 0.2);
             --primary: #00f2ff;
             --accent: #ff0055;
             --text: #ffffff;
+            --glass: rgba(20, 20, 30, 0.85);
+            --glass-border: rgba(255, 255, 255, 0.2);
         }
 
-        * { box-sizing: border-box; user-select: none; }
+        * { box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
 
         body {
             margin: 0; padding: 0;
@@ -33,17 +33,17 @@
         .top-bar {
             padding: 15px 20px;
             display: flex; justify-content: space-between; align-items: center;
-            background: rgba(0,0,0,0.3); backdrop-filter: blur(10px);
-            z-index: 100;
+            background: rgba(0,0,0,0.2); backdrop-filter: blur(10px);
+            z-index: 100; position: absolute; top: 0; left: 0; right: 0;
         }
-        .brand { font-size: 1.2rem; font-weight: 800; letter-spacing: 1px; }
-        .brand span { color: var(--primary); text-shadow: 0 0 10px var(--primary); }
+        .brand { font-size: 1.2rem; font-weight: 800; letter-spacing: 1px; text-shadow: 0 2px 10px rgba(0,0,0,0.5); }
+        .brand span { color: var(--primary); }
 
         .status-pill {
             display: flex; align-items: center; gap: 8px;
-            background: rgba(255,255,255,0.1); padding: 5px 12px;
-            border-radius: 20px; font-size: 0.8rem;
-            cursor: pointer; border: 1px solid transparent;
+            background: rgba(0,0,0,0.4); padding: 5px 12px;
+            border-radius: 20px; font-size: 0.75rem;
+            cursor: pointer; border: 1px solid rgba(255,255,255,0.1);
             transition: 0.3s;
         }
         .status-pill.connected { border-color: #00ff88; color: #00ff88; background: rgba(0, 255, 136, 0.1); }
@@ -54,8 +54,13 @@
             flex: 1; position: relative; background: #000;
             display: flex; justify-content: center; align-items: center;
             overflow: hidden;
+            height: 100%; /* Full height */
         }
-        video { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s; }
+        video { 
+            width: 100%; height: 100%; 
+            object-fit: cover; 
+            transition: transform 0.5s; 
+        }
         .mirrored { transform: scaleX(-1); }
 
         /* OVERLAYS */
@@ -64,128 +69,173 @@
             color: white; text-shadow: 0 0 30px rgba(0,0,0,0.5);
             opacity: 0; transform: scale(0.5); transition: all 0.2s;
             pointer-events: none; z-index: 20;
+            display: flex; justify-content: center; align-items: center; inset: 0;
         }
         .flash {
             position: absolute; inset: 0; background: white;
-            opacity: 0; pointer-events: none; z-index: 30; transition: opacity 0.1s;
+            opacity: 0; pointer-events: none; z-index: 30; transition: opacity 0.15s;
         }
 
         /* --- FLOATING CONTROLS --- */
         .controls {
-            position: absolute; bottom: 30px; left: 0; right: 0;
-            display: flex; justify-content: center; align-items: center; gap: 40px;
+            position: absolute; bottom: 180px; /* Di atas drawer */
+            left: 0; right: 0;
+            display: flex; justify-content: center; align-items: center; gap: 30px;
             z-index: 10;
+            pointer-events: none; /* Biar area kosong tembus */
         }
+        .controls > * { pointer-events: auto; } /* Aktifkan klik pada tombol */
 
         .btn-round {
-            width: 50px; height: 50px; border-radius: 50%;
-            border: none; background: rgba(255,255,255,0.2);
-            color: white; font-size: 1.2rem; cursor: pointer;
+            width: 45px; height: 45px; border-radius: 50%;
+            border: none; background: rgba(0,0,0,0.5);
+            color: white; font-size: 1.1rem; cursor: pointer;
             backdrop-filter: blur(5px); transition: 0.2s;
             display: flex; justify-content: center; align-items: center;
+            border: 1px solid rgba(255,255,255,0.2);
         }
-        .btn-round:active { transform: scale(0.9); }
+        .btn-round:active { transform: scale(0.9); background: var(--primary); color: black; }
         
         .shutter-ring {
-            width: 80px; height: 80px; border-radius: 50%;
-            border: 4px solid white; display: flex; justify-content: center; align-items: center;
+            width: 75px; height: 75px; border-radius: 50%;
+            border: 4px solid rgba(255,255,255,0.8); 
+            display: flex; justify-content: center; align-items: center;
             cursor: pointer; transition: 0.2s;
+            box-shadow: 0 0 20px rgba(0,0,0,0.3);
+            background: rgba(0,0,0,0.2);
         }
         .shutter-btn {
-            width: 60px; height: 60px; background: white; border-radius: 50%;
+            width: 55px; height: 55px; background: white; border-radius: 50%;
             transition: 0.2s;
         }
-        .shutter-ring:active .shutter-btn { transform: scale(0.8); background: var(--accent); }
+        .shutter-ring:active .shutter-btn { transform: scale(0.85); background: var(--accent); }
 
-        /* --- GALLERY DRAWER --- */
+        /* --- GALLERY DRAWER (Fixed) --- */
         .drawer {
-            background: var(--surface);
-            height: 160px;
-            background: rgba(20, 20, 30, 0.95);
-            backdrop-filter: blur(15px);
+            height: 150px; /* Tinggi pasti */
+            background: var(--glass);
+            backdrop-filter: blur(20px);
             border-top: 1px solid var(--glass-border);
             display: flex; flex-direction: column;
-            transition: transform 0.3s;
+            z-index: 50;
+            position: relative;
+            box-shadow: 0 -10px 30px rgba(0,0,0,0.5);
         }
         .drawer-header {
-            padding: 10px 20px; display: flex; justify-content: space-between; align-items: center;
+            padding: 8px 15px; display: flex; justify-content: space-between; align-items: center;
             border-bottom: 1px solid rgba(255,255,255,0.1);
+            height: 45px;
         }
         .send-btn {
             background: var(--primary); color: #000; border: none;
-            padding: 8px 20px; border-radius: 20px; font-weight: 700;
+            padding: 6px 18px; border-radius: 20px; font-weight: 700; font-size: 0.85rem;
             cursor: pointer; opacity: 0.5; pointer-events: none;
-            box-shadow: 0 0 15px rgba(0, 242, 255, 0.3);
+            box-shadow: 0 0 15px rgba(0, 242, 255, 0.2);
             transition: 0.3s;
+            display: flex; align-items: center; gap: 8px;
         }
-        .send-btn.active { opacity: 1; pointer-events: all; }
+        .send-btn.active { opacity: 1; pointer-events: all; box-shadow: 0 0 20px rgba(0, 242, 255, 0.5); }
 
         .gallery-track {
-            display: flex; gap: 10px; padding: 15px; overflow-x: auto; height: 100%;
+            display: flex; gap: 10px; padding: 12px; 
+            overflow-x: auto; overflow-y: hidden;
+            height: 105px; /* Sisa tinggi drawer */
+            scroll-behavior: smooth;
+            align-items: center;
         }
+        
+        /* Scrollbar styling */
+        .gallery-track::-webkit-scrollbar { height: 4px; }
+        .gallery-track::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 4px; }
+
         .photo-thumb {
-            min-width: 80px; height: 100%; border-radius: 8px;
-            overflow: hidden; position: relative;
-            border: 2px solid transparent; animation: popIn 0.3s;
+            min-width: 80px; width: 80px; height: 80px; 
+            border-radius: 10px; overflow: hidden; position: relative;
+            border: 2px solid rgba(255,255,255,0.3); 
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            flex-shrink: 0; cursor: pointer;
+            transition: transform 0.2s;
         }
+        .photo-thumb:active { transform: scale(0.95); }
         .photo-thumb img { width: 100%; height: 100%; object-fit: cover; }
-        .photo-thumb .del {
-            position: absolute; top: 0; right: 0; background: rgba(255,0,0,0.8);
-            color: white; width: 25px; height: 25px; border:none;
-            cursor: pointer; font-size: 12px;
+        .photo-thumb .badge-count {
+            position: absolute; bottom: 2px; right: 2px; 
+            font-size: 9px; background: rgba(0,0,0,0.6); color: white;
+            padding: 2px 4px; border-radius: 4px;
         }
+
+        /* --- PREVIEW MODAL (LIGHTBOX) --- */
+        .preview-modal {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.95);
+            z-index: 300; display: none; flex-direction: column;
+            justify-content: center; align-items: center;
+            animation: fadeIn 0.2s;
+        }
+        .preview-img-container {
+            flex: 1; width: 100%; display: flex; justify-content: center; align-items: center;
+            padding: 20px; overflow: hidden;
+        }
+        .preview-img {
+            max-width: 100%; max-height: 80vh; 
+            border-radius: 8px; box-shadow: 0 0 30px rgba(0,0,0,0.5);
+        }
+        .preview-controls {
+            height: 80px; width: 100%; display: flex; 
+            justify-content: center; align-items: center; gap: 20px;
+            padding-bottom: 20px;
+        }
+        .btn-preview {
+            width: 50px; height: 50px; border-radius: 50%; border: none;
+            color: white; font-size: 1.2rem; cursor: pointer;
+            display: flex; justify-content: center; align-items: center;
+        }
+        .btn-delete { background: rgba(255, 0, 85, 0.2); color: #ff0055; border: 1px solid #ff0055; }
+        .btn-close { background: rgba(255, 255, 255, 0.2); }
 
         /* --- SETTINGS MODAL --- */
         .modal-overlay {
             position: fixed; inset: 0; background: rgba(0,0,0,0.8);
-            backdrop-filter: blur(5px); z-index: 200;
+            backdrop-filter: blur(8px); z-index: 200;
             display: none; justify-content: center; align-items: center;
         }
         .modal {
-            background: #1e1e2f; width: 90%; max-width: 400px;
-            padding: 25px; border-radius: 16px; border: 1px solid var(--glass-border);
-            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            background: #1e1e2f; width: 85%; max-width: 350px;
+            padding: 25px; border-radius: 20px; border: 1px solid var(--glass-border);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.6);
             animation: slideUp 0.3s;
         }
-        .modal h2 { margin-top: 0; color: var(--primary); }
-        .setting-group { margin-bottom: 20px; }
-        .setting-label { display: block; margin-bottom: 8px; font-size: 0.9rem; color: #aaa; }
+        .modal h2 { margin-top: 0; color: var(--primary); font-size: 1.2rem; border-bottom: 1px solid #333; padding-bottom: 10px;}
+        .setting-group { margin-bottom: 15px; }
+        .setting-label { display: block; margin-bottom: 8px; font-size: 0.85rem; color: #aaa; font-weight: 500;}
         
         input[type="text"], select {
-            width: 100%; padding: 12px; background: rgba(0,0,0,0.3);
+            width: 100%; padding: 12px; background: #111;
             border: 1px solid #444; border-radius: 8px; color: white; outline: none;
+            font-size: 0.9rem;
         }
-        input[type="text"]:focus { border-color: var(--primary); }
-
-        .btn-action {
-            width: 100%; padding: 12px; border: none; border-radius: 8px;
-            font-weight: bold; cursor: pointer; margin-top: 10px;
+        
+        .toggle-group { display: flex; gap: 5px; background: #111; padding: 4px; border-radius: 10px; }
+        .toggle-btn {
+            flex: 1; padding: 8px; text-align: center; border-radius: 6px; 
+            cursor: pointer; font-size: 0.8rem; color: #666; transition: 0.2s;
         }
-        .btn-primary { background: var(--primary); color: #000; }
-        .btn-secondary { background: #333; color: white; margin-top: 10px; }
+        .toggle-btn.active { background: var(--accent); color: white; font-weight: bold; }
 
-        /* UTILS */
-        .hidden { display: none !important; }
         @keyframes popIn { from { transform: scale(0); } to { transform: scale(1); } }
         @keyframes slideUp { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-
-        /* TOGGLE SWITCH */
-        .toggle-group { display: flex; gap: 10px; }
-        .toggle-btn {
-            flex: 1; padding: 10px; background: #333; border: 1px solid #444;
-            color: #888; text-align: center; border-radius: 8px; cursor: pointer;
-        }
-        .toggle-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
 </head>
 <body>
 
     <div class="top-bar">
         <div class="brand"><i class="fas fa-camera-retro"></i> ERNOBA<span>BOOTH</span></div>
-        <div class="status-pill disconnected" onclick="openSettings()" id="statusPill">
-            <i class="fas fa-plug"></i> <span id="statusText">Disconnected</span>
+        <div style="display: flex; gap: 10px;">
+            <div class="status-pill disconnected" onclick="openSettings()" id="statusPill">
+                <i class="fas fa-plug"></i> <span id="statusText">Offline</span>
+            </div>
+            <button class="btn-round" style="width:32px; height:32px; font-size:0.9rem;" onclick="openSettings()"><i class="fas fa-cog"></i></button>
         </div>
-        <button class="btn-round" onclick="openSettings()"><i class="fas fa-cog"></i></button>
     </div>
 
     <div class="camera-wrapper">
@@ -194,7 +244,9 @@
         <div id="countdown" class="countdown-overlay">3</div>
         
         <div class="controls">
-            <div class="btn-round" id="timerBadge" style="font-size:0.8rem; font-weight:bold;">0s</div>
+            <button class="btn-round" onclick="toggleTimer()" id="timerBtn">
+                <span id="timerBadge" style="font-weight: bold; font-size: 0.8rem;">OFF</span>
+            </button>
             
             <div class="shutter-ring" onclick="startCaptureFlow()">
                 <div class="shutter-btn"></div>
@@ -208,67 +260,82 @@
 
     <div class="drawer">
         <div class="drawer-header">
-            <span style="font-size: 0.9rem; color: #888;"><i class="fas fa-images"></i> Galeri (<span id="count">0</span>)</span>
+            <span style="font-size: 0.9rem; color: #aaa;">
+                <i class="fas fa-images"></i> Terambil: <b style="color:white" id="count">0</b>
+            </span>
             <button id="sendBtn" class="send-btn" onclick="uploadFiles()">
-                KIRIM <i class="fas fa-paper-plane"></i>
+                KIRIM SEMUA <i class="fas fa-paper-plane"></i>
             </button>
         </div>
         <div class="gallery-track" id="gallery">
-            </div>
+            <div style="color: #555; font-size: 0.8rem; padding: 0 10px; white-space: nowrap;">Belum ada foto.</div>
+        </div>
+    </div>
+
+    <div class="preview-modal" id="previewModal">
+        <div class="preview-img-container">
+            <img id="previewImg" class="preview-img" src="">
+        </div>
+        <div class="preview-controls">
+            <button class="btn-preview btn-close" onclick="closePreview()">
+                <i class="fas fa-arrow-left"></i>
+            </button>
+            <button class="btn-preview btn-delete" onclick="deleteCurrentPreview()">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
     </div>
 
     <div class="modal-overlay" id="settingsModal">
         <div class="modal">
-            <h2><i class="fas fa-sliders-h"></i> Pengaturan</h2>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                <h2>Pengaturan</h2>
+                <i class="fas fa-times" onclick="closeSettings()" style="color:#666; cursor:pointer;"></i>
+            </div>
             
             <div class="setting-group">
                 <label class="setting-label">Koneksi Server</label>
-                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                <div style="display: flex; gap: 8px; margin-bottom: 10px;">
                     <select id="scanList" onchange="useScannedIp()">
                         <option value="">-- Scan Server --</option>
                     </select>
-                    <button class="btn-round" style="width: 40px; height: 40px; border-radius: 8px;" onclick="scanServers()"><i class="fas fa-redo"></i></button>
+                    <button style="background:var(--primary); border:none; border-radius:6px; width:40px;" onclick="scanServers()"><i class="fas fa-redo"></i></button>
                 </div>
-                <label class="setting-label">Manual IP</label>
-                <div style="display: flex; gap: 10px;">
-                    <input type="text" id="manualIp" placeholder="Contoh: 192.168.1.10">
-                    <button class="btn-round" style="width: 40px; height: 40px; border-radius: 8px; background: var(--primary); color:black;" onclick="setManualIp()"><i class="fas fa-check"></i></button>
-                </div>
-            </div>
-
-            <div class="setting-group">
-                <label class="setting-label">Timer Foto</label>
-                <div class="toggle-group">
-                    <div class="toggle-btn active" onclick="setTimer(0, this)">OFF</div>
-                    <div class="toggle-btn" onclick="setTimer(3, this)">3s</div>
-                    <div class="toggle-btn" onclick="setTimer(5, this)">5s</div>
+                
+                <label class="setting-label">IP Manual</label>
+                <div style="display: flex; gap: 8px;">
+                    <input type="text" id="manualIp" placeholder="192.168.x.x">
+                    <button style="background:#333; color:white; border:none; border-radius:6px; width:40px;" onclick="setManualIp()"><i class="fas fa-save"></i></button>
                 </div>
             </div>
 
             <div class="setting-group">
-                <label class="setting-label">Efek Cermin</label>
+                <label class="setting-label">Efek Cermin (Kamera Depan)</label>
                 <div class="toggle-group">
                     <div class="toggle-btn active" onclick="toggleMirror(true, this)">ON</div>
                     <div class="toggle-btn" onclick="toggleMirror(false, this)">OFF</div>
                 </div>
             </div>
 
-            <button class="btn-action btn-secondary" onclick="closeSettings()">Tutup</button>
+            <div style="text-align: center; margin-top: 20px; font-size: 0.7rem; color: #555;">
+                ERNOBA PHOTOBOOTH v2.0
+            </div>
         </div>
     </div>
 
     <canvas id="canvas" style="display:none;"></canvas>
 
     <script>
-        // --- CORE VARIABLES ---
+        // --- VARIABLES ---
         let stream = null;
-        let facingMode = 'user'; // 'user' (front) or 'environment' (back)
-        let capturedBlobs = [];
+        let facingMode = 'user';
+        let capturedBlobs = []; // Array storing {id, blob}
         let timerDuration = 0;
         let serverIp = null;
         let isMirrored = true;
+        let currentPreviewId = null;
 
-        // --- CAMERA LOGIC ---
+        // --- CAMERA SYSTEM ---
         async function initCamera() {
             if (stream) {
                 stream.getTracks().forEach(track => track.stop());
@@ -277,8 +344,8 @@
                 const constraints = {
                     video: {
                         facingMode: facingMode,
-                        width: { ideal: 1920 },
-                        height: { ideal: 1080 }
+                        width: { ideal: 1280 }, // Optimize for mobile performance
+                        height: { ideal: 720 }
                     },
                     audio: false
                 };
@@ -291,56 +358,53 @@
 
         function switchCamera() {
             facingMode = facingMode === 'user' ? 'environment' : 'user';
-            
-            // Auto mirror logic: Front cam = mirror, Back cam = normal
+            // Auto-disable mirror for back camera
             if (facingMode === 'environment') {
-                toggleMirror(false, null); // Matikan mirror kalau kamera belakang
+                toggleMirror(false, document.querySelectorAll('.toggle-group')[1].children[1]);
             } else {
-                toggleMirror(true, null); // Nyalakan mirror kalau kamera depan
+                toggleMirror(true, document.querySelectorAll('.toggle-group')[1].children[0]);
             }
-            
             initCamera();
         }
 
         function toggleMirror(state, btnElement) {
             isMirrored = state;
             const video = document.getElementById('videoFeed');
-            if (isMirrored) {
-                video.classList.add('mirrored');
-            } else {
-                video.classList.remove('mirrored');
-            }
+            if (isMirrored) video.classList.add('mirrored');
+            else video.classList.remove('mirrored');
 
-            // Update UI Button style if clicked manually
             if(btnElement) {
-                document.querySelectorAll('.setting-group:nth-child(3) .toggle-btn').forEach(b => b.classList.remove('active'));
+                const group = btnElement.parentElement;
+                Array.from(group.children).forEach(c => c.classList.remove('active'));
                 btnElement.classList.add('active');
             }
         }
 
-        // --- CAPTURE LOGIC ---
-        function setTimer(seconds, el) {
-            timerDuration = seconds;
-            document.getElementById('timerBadge').innerText = seconds > 0 ? seconds + 's' : 'Off';
-            if(el) {
-                document.querySelectorAll('.setting-group:nth-child(2) .toggle-btn').forEach(b => b.classList.remove('active'));
-                el.classList.add('active');
-            }
+        // --- TIMER LOGIC ---
+        function toggleTimer() {
+            // Cycle: 0 -> 3 -> 5 -> 0
+            if(timerDuration === 0) timerDuration = 3;
+            else if(timerDuration === 3) timerDuration = 5;
+            else timerDuration = 0;
+
+            const badge = document.getElementById('timerBadge');
+            badge.innerText = timerDuration === 0 ? "OFF" : timerDuration + "s";
+            badge.style.color = timerDuration === 0 ? "white" : "var(--primary)";
         }
 
+        // --- CAPTURE LOGIC ---
         function startCaptureFlow() {
             if (timerDuration === 0) {
                 takePhoto();
                 return;
             }
 
-            // Countdown sequence
             const overlay = document.getElementById('countdown');
             let count = timerDuration;
             
             overlay.innerText = count;
             overlay.style.opacity = '1';
-            overlay.style.transform = 'scale(1.5)';
+            overlay.style.transform = 'scale(1.2)';
 
             const interval = setInterval(() => {
                 count--;
@@ -360,16 +424,15 @@
             const canvas = document.getElementById('canvas');
             const ctx = canvas.getContext('2d');
             
-            // Flash animation
+            // Flash Effect
             const flash = document.getElementById('flash');
             flash.style.opacity = '1';
-            setTimeout(() => flash.style.opacity = '0', 150);
+            setTimeout(() => flash.style.opacity = '0', 100);
 
-            // Setup Canvas
+            // Capture
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
 
-            // Handle Mirroring for Capture
             if (isMirrored) {
                 ctx.translate(canvas.width, 0);
                 ctx.scale(-1, 1);
@@ -377,14 +440,21 @@
 
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-            // Save
             canvas.toBlob(blob => {
-                capturedBlobs.push({ id: Date.now(), blob: blob });
+                const newId = Date.now();
+                capturedBlobs.push({ id: newId, blob: blob });
                 updateGallery();
+                
+                // Auto scroll to latest
+                setTimeout(() => {
+                    const track = document.getElementById('gallery');
+                    track.scrollLeft = track.scrollWidth;
+                }, 100);
+
             }, 'image/jpeg', 0.95);
         }
 
-        // --- GALLERY UI ---
+        // --- GALLERY & PREVIEW ---
         function updateGallery() {
             const track = document.getElementById('gallery');
             const countEl = document.getElementById('count');
@@ -392,28 +462,55 @@
             
             track.innerHTML = '';
             
-            capturedBlobs.slice().reverse().forEach(item => {
+            if (capturedBlobs.length === 0) {
+                track.innerHTML = '<div style="color: #888; font-size: 0.8rem; margin: auto;">Belum ada foto</div>';
+                btn.classList.remove('active');
+                countEl.innerText = '0';
+                return;
+            }
+
+            capturedBlobs.forEach((item, index) => {
                 const url = URL.createObjectURL(item.blob);
                 const div = document.createElement('div');
                 div.className = 'photo-thumb';
+                // Click to open preview
+                div.onclick = () => openPreview(item.id);
+                
                 div.innerHTML = `
                     <img src="${url}">
-                    <button class="del" onclick="deletePhoto(${item.id})">✕</button>
+                    <div class="badge-count">#${index+1}</div>
                 `;
                 track.appendChild(div);
             });
 
             countEl.innerText = capturedBlobs.length;
-            if(capturedBlobs.length > 0 && serverIp) {
-                btn.classList.add('active');
-            } else {
-                btn.classList.remove('active');
-            }
+            if(serverIp) btn.classList.add('active');
         }
 
-        function deletePhoto(id) {
-            capturedBlobs = capturedBlobs.filter(i => i.id !== id);
+        function openPreview(id) {
+            const item = capturedBlobs.find(i => i.id === id);
+            if(!item) return;
+
+            currentPreviewId = id;
+            const modal = document.getElementById('previewModal');
+            const img = document.getElementById('previewImg');
+            
+            img.src = URL.createObjectURL(item.blob);
+            modal.style.display = 'flex';
+        }
+
+        function closePreview() {
+            document.getElementById('previewModal').style.display = 'none';
+            currentPreviewId = null;
+        }
+
+        function deleteCurrentPreview() {
+            if(!currentPreviewId) return;
+            if(!confirm("Hapus foto ini?")) return;
+
+            capturedBlobs = capturedBlobs.filter(i => i.id !== currentPreviewId);
             updateGallery();
+            closePreview();
         }
 
         // --- NETWORKING ---
@@ -424,10 +521,28 @@
             const sel = document.getElementById('scanList');
             sel.innerHTML = '<option>Scanning...</option>';
             fetch('/api/scan').then(r=>r.json()).then(data => {
-                sel.innerHTML = '<option value="">-- Pilih Hasil Scan --</option>';
-                for (const [ip, info] of Object.entries(data)) {
-                    sel.innerHTML += `<option value="${ip}">${info.name} (${ip})</option>`;
+                sel.innerHTML = '<option value="">-- Pilih Server --</option>';
+                // Handle dict or list format
+                const items = Array.isArray(data) ? data : Object.entries(data);
+                
+                if (items.length === 0) {
+                    sel.innerHTML = '<option value="">Tidak ditemukan</option>';
+                    return;
                 }
+
+                if (Array.isArray(data)) {
+                    // If your backend returns list
+                     data.forEach(srv => {
+                        sel.innerHTML += `<option value="${srv.ip}">${srv.name} (${srv.ip})</option>`;
+                     });
+                } else {
+                    // If backend returns dict {ip: {name...}}
+                    for (const [ip, info] of Object.entries(data)) {
+                        sel.innerHTML += `<option value="${ip}">${info.name} (${ip})</option>`;
+                    }
+                }
+            }).catch(e => {
+                sel.innerHTML = '<option value="">Error Scan</option>';
             });
         }
 
@@ -451,9 +566,10 @@
             .then(res => {
                 if(res.status === 'ok') {
                     serverIp = ip;
-                    updateStatusUI(true, ip);
+                    updateStatusUI(true, `Connected: ${ip}`);
                     closeSettings();
-                    updateGallery(); // Re-check send button
+                    updateGallery();
+                    alert("Terhubung ke " + ip);
                 } else {
                     alert("Error: " + res.message);
                 }
@@ -465,18 +581,22 @@
             const label = document.getElementById('statusText');
             if(connected) {
                 pill.className = 'status-pill connected';
-                label.innerText = text;
+                label.innerText = "Online";
+                pill.onclick = () => alert(text);
             } else {
                 pill.className = 'status-pill disconnected';
-                label.innerText = "Disconnected";
+                label.innerText = "Offline";
             }
         }
 
         function uploadFiles() {
-            if(!serverIp) return alert("Belum konek ke server!");
+            if(!serverIp) return alert("Pilih server dulu di Pengaturan (Ikon Roda Gigi)");
+            if(capturedBlobs.length === 0) return alert("Belum ada foto yang diambil");
             
             const btn = document.getElementById('sendBtn');
+            const originalText = btn.innerHTML;
             btn.innerHTML = 'Sending... <i class="fas fa-spinner fa-spin"></i>';
+            btn.style.opacity = 0.7;
             
             const formData = new FormData();
             capturedBlobs.forEach((item, i) => {
@@ -487,19 +607,23 @@
             .then(r => r.json())
             .then(res => {
                 if(res.status === 'ok') {
-                    alert(`Sukses mengirim ${res.count} foto!`);
+                    alert(`✅ Sukses mengirim ${res.count} foto!`);
                     capturedBlobs = [];
                     updateGallery();
                 } else {
-                    alert("Gagal: " + res.error);
+                    alert("❌ Gagal: " + (res.error || "Unknown error"));
                 }
-                btn.innerHTML = 'KIRIM <i class="fas fa-paper-plane"></i>';
+                btn.innerHTML = originalText;
+                btn.style.opacity = 1;
+            })
+            .catch(e => {
+                alert("Gagal koneksi: " + e);
+                btn.innerHTML = originalText;
             });
         }
 
         // Init
         initCamera();
-        scanServers();
     </script>
 </body>
 </html>

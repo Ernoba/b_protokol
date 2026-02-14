@@ -72,12 +72,20 @@ def api_scan():
 def api_set_server():
     data = request.json
     ip = data.get('ip')
-    # Validasi sederhana
+    
+    # Validasi
     if not ip or len(ip.split('.')) != 4:
         return jsonify({"status": "error", "message": "Format IP Salah"}), 400
         
     STATE["target_ip"] = ip
-    add_log(f"🔗 Target Server manual: {ip}", "success")
+
+    # --- TAMBAHAN KODE (CRITICAL FIX) ---
+    # Kita paksa masukkan IP ini ke dalam "buku telepon" (peers) bproto.
+    # Kita asumsikan Server pasti berjalan di port 7002.
+    STATE["client"].peers[ip] = {"name": "Manual-Server", "port": 7002} 
+    # ------------------------------------
+    
+    add_log(f"🔗 Target Server manual: {ip} (Port 7002)", "success")
     return jsonify({"status": "ok", "target": ip})
 
 @app.route('/api/upload', methods=['POST'])
