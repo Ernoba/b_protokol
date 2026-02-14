@@ -4,18 +4,47 @@ import uuid
 import time
 import base64
 import os
-from .config import SESSION_TIMEOUT
+from .config import SESSION_TIMEOUT, ENABLE_ENCRYPTION
 
-# Jika ingin enkripsi kuat, perlu 'pip install cryptography'
-# Untuk sekarang kita pakai implementasi XOR sederhana atau 
-# pure python AES jika library tidak ada, tapi demi kompatibilitas 
-# tanpa dependensi berat, kita pakai logic Auth yang lama + Scrambling.
+try:
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+    HAS_CRYPTO = True
+except ImportError:
+    HAS_CRYPTO = False
 
 class SecurityManager:
     def __init__(self, secret):
         self.secret = secret
-        self.authorized_sessions = {}  # IP -> {token, expires}
-        self.client_tokens = {}        # IP -> {token, expires} (Outgoing)
+        self.authorized_sessions = {}
+        self.client_tokens = {}
+        
+        # Buat Key AES 256-bit dari secret config
+        if HAS_CRYPTO:
+            key = hashlib.sha256(secret.encode()).digest()
+            self.aes = AESGCM(key)
+        else:
+            print("[WARNING] Library 'cryptography' not found. Encryption disabled.")
+
+    def encrypt_data(self, data: bytes) -> bytes:
+        """Enkripsi data bytes dengan AES-GCM"""
+        if not ENABLE_ENCRYPTION or not HAS_CRYPTO:
+            return data
+        
+        nonce = os.urandom(12) # 12 bytes nonce rekomendasi untuk GCM
+        ciphertext = self.aes.encrypt(nonce, data, None)
+        return nonce + ciphertext
+
+    def decrypt_data(self, data: bytes) -> bytes:
+        """Dekripsi data bytes"""
+        if not ENABLE_ENCRYPTION or not HAS_CRYPTO:
+            return data
+            
+        try:
+            nonce = data[:12]
+            ciphertext = data[12:]
+            return self.aes.decrypt(nonce, ciphertext, None)
+        except Exception:
+            raise ValueError("Decryption failed: Invalid Key or Corrupted Data")
 
     def generate_token(self):
         return uuid.uuid4().hex
@@ -50,6 +79,7 @@ class SecurityManager:
         }
 
     def verify_handshake(self, nonce, client_proof):
+        # Simple SHA verification for handshake proof
         expected = hashlib.sha256((self.secret + nonce).encode()).hexdigest()
         return client_proof == expected
 

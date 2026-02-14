@@ -4,15 +4,16 @@ import time
 import socket
 import zipfile
 import hashlib
-from .config import CHUNK_SIZE, VERIFY_INTEGRITY
+import zlib
+from .config import CHUNK_SIZE, VERIFY_INTEGRITY, ENABLE_COMPRESSION, ENABLE_ENCRYPTION
 
 class TransferManager:
-    def __init__(self, save_dir, events):
+    def __init__(self, save_dir, events, security_manager=None):
         self.save_dir = save_dir
         self.events = events
+        self.security = security_manager # Referensi ke SecurityManager
 
     def calculate_checksum(self, filepath):
-        """Fitur Baru: Hitung hash file"""
         sha256_hash = hashlib.sha256()
         with open(filepath, "rb") as f:
             for byte_block in iter(lambda: f.read(4096), b""):
@@ -20,7 +21,6 @@ class TransferManager:
         return sha256_hash.hexdigest()
 
     def prepare_file(self, filepath):
-        """Menyiapkan file (zip jika folder)"""
         is_zip = False
         final_path = filepath
         
@@ -45,7 +45,9 @@ class TransferManager:
             "name": filename,
             "size": filesize,
             "is_zip": is_zip,
-            "checksum": checksum
+            "checksum": checksum,
+            "compressed": ENABLE_COMPRESSION,
+            "encrypted": ENABLE_ENCRYPTION
         }
 
     def stream_file(self, sock, file_path, start_byte, total_size):
@@ -58,44 +60,88 @@ class TransferManager:
             while True:
                 chunk = f.read(CHUNK_SIZE)
                 if not chunk: break
-                sock.sendall(chunk)
-                sent += len(chunk)
                 
-                # Progress calc
+                # 1. Kompresi
+                if ENABLE_COMPRESSION:
+                    chunk = zlib.compress(chunk)
+                
+                # 2. Enkripsi (Jika ada security manager dan enabled)
+                if self.security and ENABLE_ENCRYPTION:
+                    chunk = self.security.encrypt_data(chunk)
+
+                # Kirim panjang chunk dulu (agar penerima tahu seberapa banyak baca)
+                # Format: [4 byte length][data]
+                sock.sendall(len(chunk).to_bytes(4, byteorder='big'))
+                sock.sendall(chunk)
+                
+                sent += len(chunk) # Hitung bytes raw yang dikirim (bukan asli)
+                
+                # Progress calc (estimasi kasar karena kompresi mengubah ukuran)
                 elapsed = time.time() - start_time
                 mbps = (sent - start_byte) / (1024*1024) / (elapsed if elapsed > 0 else 1)
-                self.events.progress(filename, (sent/total_size)*100, mbps)
+                self.events.progress(filename, min((sent/total_size)*100, 99), mbps)
+
+        # Kirim terminator ukuran 0
+        sock.sendall((0).to_bytes(4, byteorder='big'))
 
     def receive_stream(self, sock, meta):
         path = os.path.join(self.save_dir, meta['name'])
-        curr_size = os.path.getsize(path) if os.path.exists(path) else 0
-        mode = 'ab' if curr_size > 0 else 'wb'
         
-        received_total = curr_size
+        # Deteksi fitur dari metadata pengirim
+        use_compression = meta.get('compressed', False)
+        use_encryption = meta.get('encrypted', False)
+
+        received_total = 0
         total_expected = meta['size']
         start_time = time.time()
 
-        with open(path, mode) as f:
-            while received_total < total_expected:
-                chunk = sock.recv(CHUNK_SIZE)
-                if not chunk: break
-                f.write(chunk)
-                received_total += len(chunk)
+        with open(path, 'wb') as f:
+            while True:
+                # Baca panjang chunk berikutnya
+                raw_len = sock.recv(4)
+                if not raw_len: break
+                chunk_len = int.from_bytes(raw_len, byteorder='big')
+                if chunk_len == 0: break # End of stream
+
+                # Baca chunk penuh
+                chunk_data = b""
+                while len(chunk_data) < chunk_len:
+                    packet = sock.recv(chunk_len - len(chunk_data))
+                    if not packet: break
+                    chunk_data += packet
+                
+                # 1. Dekripsi
+                if use_encryption and self.security:
+                    try:
+                        chunk_data = self.security.decrypt_data(chunk_data)
+                    except Exception as e:
+                        self.events.error("Decryption error during transfer")
+                        break
+
+                # 2. Dekompresi
+                if use_compression:
+                    try:
+                        chunk_data = zlib.decompress(chunk_data)
+                    except Exception:
+                        self.events.error("Decompression error")
+                        break
+                
+                f.write(chunk_data)
+                received_total += len(chunk_data) # Ukuran asli
                 
                 elapsed = time.time() - start_time
-                mbps = (received_total - curr_size) / (1024*1024) / (elapsed if elapsed > 0 else 1)
+                mbps = (received_total) / (1024*1024) / (elapsed if elapsed > 0 else 1)
                 self.events.progress(meta['name'], (received_total/total_expected)*100, mbps)
         
-        self.events.log(f"File Received: {meta['name']} saved to {self.save_dir}")
+        self.events.log(f"File Received: {meta['name']}")
         
-        # Verify Integrity
         if VERIFY_INTEGRITY and 'checksum' in meta and meta['checksum']:
             self.events.log("Verifying checksum...")
             local_hash = self.calculate_checksum(path)
             if local_hash == meta['checksum']:
-                self.events.log("Integrity Check: PASSED (File Perfect)")
+                self.events.log("Integrity Check: PASSED")
             else:
-                self.events.error("Integrity Check: FAILED (File Corrupt!)")
+                self.events.error("Integrity Check: FAILED")
 
     def _zip_folder(self, path, zip_name):
         self.events.log("Zipping folder...")
