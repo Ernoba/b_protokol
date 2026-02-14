@@ -18,8 +18,8 @@
             3
         </div>
 
-        <div style="position:absolute; bottom:140px; z-index:30;">
-            <button id="lensToggleBtn" onclick="cycleBackLens()" style="background:rgba(0,0,0,0.6); color:white; border:1px solid rgba(255,255,255,0.4); padding:8px 16px; border-radius:20px; display:none; cursor:pointer;">
+        <div id="lensContainer" style="position:absolute; bottom:180px; left:0; right:0; display:flex; justify-content:center; z-index:35;">
+            <button id="lensToggleBtn" onclick="cycleBackLens()" style="background:rgba(0,0,0,0.5); color:white; border:1px solid rgba(255,255,255,0.3); padding:8px 16px; border-radius:20px; display:none; cursor:pointer; backdrop-filter:blur(4px);">
                 <i class="fas fa-circle-notch"></i> Ganti Lensa
             </button>
         </div>
@@ -30,6 +30,15 @@
     </div>
     <div style="position:absolute; right:20px; top:50%; transform:translateY(-50%); color:rgba(255,255,255,0.5); z-index:10; cursor:pointer;" onclick="slide(2)">
         <i class="fas fa-images fa-2x"></i>
+    </div>
+
+    <div class="filter-scroll">
+        <div class="filter-chip active" onclick="setFilter('none')">Normal</div>
+        <div class="filter-chip" onclick="setFilter('bright')">Cerah</div>
+        <div class="filter-chip" onclick="setFilter('bw')">B&W</div>
+        <div class="filter-chip" onclick="setFilter('sepia')">Sepia</div>
+        <div class="filter-chip" onclick="setFilter('warm')">Hangat</div>
+        <div class="filter-chip" onclick="setFilter('cool')">Sejuk</div>
     </div>
 
     <div class="camera-controls">
@@ -44,14 +53,5 @@
         <div class="icon-btn" onclick="toggleTimer()" id="timerBtn" style="font-weight:bold; font-size:0.8rem;">
             OFF
         </div>
-    </div>
-
-    <div class="filter-scroll">
-        <div class="filter-chip active" onclick="setFilter('none')">Normal</div>
-        <div class="filter-chip" onclick="setFilter('bright')">Cerah</div>
-        <div class="filter-chip" onclick="setFilter('bw')">B&W</div>
-        <div class="filter-chip" onclick="setFilter('sepia')">Sepia</div>
-        <div class="filter-chip" onclick="setFilter('warm')">Hangat</div>
-        <div class="filter-chip" onclick="setFilter('cool')">Sejuk</div>
     </div>
 </div>
