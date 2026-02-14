@@ -13,6 +13,7 @@ from .security import SecurityManager
 from .discovery import DiscoveryManager
 from .transfer import TransferManager
 from .server import ServerManager
+from .websocket import WebSocketManager # Import baru
 
 class BProto:
     def __init__(self, device_name=None, secret=DEFAULT_SECRET, save_dir=DEFAULT_SAVE_DIR, port=None):
@@ -20,28 +21,33 @@ class BProto:
         self.save_dir = os.path.abspath(save_dir)
         if not os.path.exists(self.save_dir): os.makedirs(self.save_dir)
 
-        # 1. Inisialisasi Sub-Sistem
-        self.events = EventManager()
-        self.security = SecurityManager(secret)
-        self.transfer = TransferManager(self.save_dir, self.events)
-        
-        # Setup Port
+        # Port Logic
         try:
             self.tcp_port = port if port else TCP_PORT
         except NameError:
             self.tcp_port = 7002
 
+        # 1. Inisialisasi Sub-Sistem
+        self.events = EventManager()
+        self.security = SecurityManager(secret)
+        # Pass security ke transfer untuk enkripsi file
+        self.transfer = TransferManager(self.save_dir, self.events, self.security) 
+        
         # 2. Network Managers
         self.discovery = DiscoveryManager(self.name, self.tcp_port, self.events)
         self.server = ServerManager(self.tcp_port, self.security, self.transfer, self.events)
         
-        # Backward compatibility property
+        # 3. WebSocket Manager (Baru)
+        self.ws_server = WebSocketManager(self.tcp_port, self.security, self.events, self.transfer)
+        
         self.peers = self.discovery.peers 
 
     def start(self):
-        self.events.log(f"BProto V2 Starting on Port {self.tcp_port}...")
+        self.events.log(f"BProto V2.5 (Crypto+WS) Starting...")
         self.server.start()
         self.discovery.start_listener()
+        self.ws_server.start() # Start WebSocket
+        self.events.log(f"TCP: {self.tcp_port}, WS: {self.tcp_port + 100}")
         self.events.log("Service Active.")
 
     def stop(self):
