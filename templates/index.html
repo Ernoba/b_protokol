@@ -8,14 +8,11 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            /* Tema Cerah (Light Mode) */
-            --primary: #4A90E2;       /* Biru Laut Cerah */
-            --accent: #FF6B6B;        /* Merah Muda */
-            --bg-body: #F7F9FC;       /* Putih Kebiruan */
-            --bg-card: #FFFFFF;
+            /* Tema Ernoba */
+            --primary: #4A90E2;
+            --accent: #FF6B6B;
+            --bg-body: #F7F9FC;
             --text-main: #2C3E50;
-            --text-sub: #7F8C8D;
-            --shadow: 0 10px 30px rgba(0,0,0,0.08);
             --radius: 20px;
         }
 
@@ -23,212 +20,153 @@
 
         body {
             margin: 0; padding: 0;
-            background: var(--bg-body);
+            background: #000; /* Background hitam agar seamless */
             font-family: 'Poppins', sans-serif;
             color: var(--text-main);
-            height: 100vh;
-            overflow: hidden; /* Mencegah scroll default browser */
-            display: flex;
-            flex-direction: column;
+            /* PERBAIKAN LAYOUT: Gunakan dvh untuk mobile */
+            height: 100dvh; 
+            width: 100vw;
+            overflow: hidden;
+            position: fixed; /* Kunci posisi agar tidak scroll */
+            inset: 0;
         }
 
-        /* --- LAYOUT UTAMA (SLIDER SYSTEM) --- */
+        /* --- SLIDER SYSTEM --- */
         .main-container {
             display: flex;
-            width: 300vw; /* 3 Halaman Lebar */
+            width: 300%; /* 3 Halaman */
             height: 100%;
             transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
-            transform: translateX(-100vw); /* Mulai di halaman tengah (Kamera) */
+            transform: translateX(-33.33%); /* Mulai di tengah (33.33% dari 300% = 1 layar) */
         }
 
         .page {
-            width: 100vw;
+            width: 100vw; /* Lebar relatif terhadap viewport */
             height: 100%;
+            flex-shrink: 0; /* Jangan mengecil */
             position: relative;
-            overflow-y: hidden;
             display: flex;
             flex-direction: column;
         }
 
-        /* --- HALAMAN 1: AUTHOR (KIRI) --- */
+        /* --- HALAMAN 1: AUTHOR --- */
         .page-author {
             background: var(--bg-body);
-            padding: 40px 20px;
             justify-content: center; align-items: center; text-align: center;
-            overflow-y: auto;
+            padding: 20px;
         }
         .author-card {
-            background: #fff;
-            padding: 30px;
-            border-radius: var(--radius);
-            box-shadow: var(--shadow);
-            max-width: 400px; width: 100%;
-            margin: auto;
+            background: #fff; padding: 30px; border-radius: var(--radius);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1); max-width: 350px; width: 100%;
         }
-        .author-card h2 { color: var(--primary); margin-bottom: 5px; }
-        .tech-stack { display: flex; gap: 10px; justify-content: center; margin-top: 20px; flex-wrap: wrap; }
-        .tech-badge {
-            background: #EEF2F7; color: var(--text-sub);
-            padding: 5px 12px; border-radius: 15px; font-size: 0.8rem; font-weight: 600;
-        }
-        .nav-btn-back {
-            margin-top: 20px; padding: 10px 30px;
-            background: var(--primary); color: white; border: none;
-            border-radius: 50px; font-weight: bold; cursor: pointer;
-        }
+        .tech-stack { display: flex; gap: 8px; justify-content: center; margin-top: 15px; flex-wrap: wrap; }
+        .tech-badge { background: #EEF2F7; padding: 5px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
 
-        /* --- HALAMAN 2: KAMERA (TENGAH) --- */
-        .page-camera {
-            background: #000; /* Kamera butuh background hitam agar fokus */
-            position: relative;
-        }
+        /* --- HALAMAN 2: KAMERA --- */
+        .page-camera { background: #000; }
         
-        /* Header Kamera */
-        .camera-header {
-            position: absolute; top: 0; left: 0; right: 0;
-            padding: 20px; z-index: 10;
-            display: flex; justify-content: space-between; align-items: center;
-            background: linear-gradient(to bottom, rgba(0,0,0,0.4), transparent);
+        /* Video Container: Memastikan video proporsional tapi memenuhi layar */
+        .video-container {
+            position: relative;
+            width: 100%;
+            flex: 1; /* Isi sisa ruang */
+            overflow: hidden;
+            display: flex; align-items: center; justify-content: center;
         }
-        .brand-pill {
-            background: rgba(255,255,255,0.9); padding: 8px 16px;
-            border-radius: 30px; font-weight: 700; font-size: 0.9rem;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            color: var(--text-main);
-        }
-        .settings-btn {
-            width: 40px; height: 40px; border-radius: 50%;
-            background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3);
-            color: white; display: flex; align-items: center; justify-content: center;
-            cursor: pointer; backdrop-filter: blur(5px);
-        }
-
-        /* Video Feed */
         video {
             width: 100%; height: 100%; object-fit: cover;
-            transition: opacity 0.3s;
-        }
-        
-        /* Flash Overlay */
-        .flash-overlay {
-            position: absolute; inset: 0; background: white;
-            opacity: 0; pointer-events: none; z-index: 50; transition: opacity 0.1s;
         }
 
-        /* Kontrol Bawah Kamera */
+        /* UI Overlay Kamera */
+        .camera-header {
+            position: absolute; top: 0; left: 0; right: 0;
+            padding: 20px; z-index: 20;
+            display: flex; justify-content: space-between; align-items: center;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.6), transparent);
+        }
+        .brand-pill {
+            background: rgba(255,255,255,0.9); padding: 6px 14px;
+            border-radius: 20px; font-weight: 700; font-size: 0.85rem;
+        }
+        .icon-btn {
+            width: 40px; height: 40px; border-radius: 50%;
+            background: rgba(255,255,255,0.25); border: 1px solid rgba(255,255,255,0.3);
+            color: white; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; backdrop-filter: blur(4px);
+        }
+
         .camera-controls {
-            position: absolute; bottom: 40px; left: 0; right: 0;
-            display: flex; justify-content: space-evenly; align-items: center;
+            position: absolute; bottom: 0; left: 0; right: 0;
+            padding: 30px 20px 50px 20px; /* Padding bawah extra untuk safe area */
+            background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+            display: flex; justify-content: space-around; align-items: center;
             z-index: 20;
-            padding-bottom: env(safe-area-inset-bottom);
         }
         
-        .btn-control {
-            width: 50px; height: 50px; border-radius: 50%;
-            background: rgba(255,255,255,0.9); border: none;
-            color: var(--text-main); font-size: 1.2rem;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-            cursor: pointer; transition: transform 0.2s;
-            display: flex; align-items: center; justify-content: center;
-        }
-        .btn-control:active { transform: scale(0.9); }
-
         .shutter-outer {
-            width: 85px; height: 85px; border-radius: 50%;
-            border: 4px solid white;
-            display: flex; align-items: center; justify-content: center;
-            cursor: pointer;
-            background: rgba(0,0,0,0.1);
+            width: 80px; height: 80px; border-radius: 50%;
+            border: 4px solid white; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; background: rgba(255,255,255,0.1);
         }
         .shutter-inner {
-            width: 70px; height: 70px; background: white; border-radius: 50%;
+            width: 65px; height: 65px; background: white; border-radius: 50%;
             transition: 0.2s;
         }
-        .shutter-outer:active .shutter-inner { transform: scale(0.85); background: var(--primary); }
+        .shutter-outer:active .shutter-inner { transform: scale(0.9); background: var(--primary); }
 
-        /* Navigasi Samping (Panah) untuk memberitahu user bisa geser */
+        .flash-overlay {
+            position: fixed; inset: 0; background: white;
+            opacity: 0; pointer-events: none; z-index: 100; transition: opacity 0.1s;
+        }
+
+        /* Navigasi Hint */
         .nav-hint {
             position: absolute; top: 50%; transform: translateY(-50%);
-            color: white; font-size: 1.5rem; opacity: 0.6; z-index: 15;
-            cursor: pointer; padding: 20px; text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+            color: rgba(255,255,255,0.5); font-size: 1.5rem; padding: 20px; z-index: 15; cursor: pointer;
         }
         .nav-left { left: 0; }
         .nav-right { right: 0; }
 
-        /* --- HALAMAN 3: GALERI (KANAN) --- */
-        .page-gallery {
-            background: var(--bg-body);
-            display: flex; flex-direction: column;
-            height: 100vh;
-        }
+        /* --- HALAMAN 3: GALERI --- */
+        .page-gallery { background: var(--bg-body); height: 100%; display: flex; flex-direction: column; }
         .gallery-header {
-            padding: 20px; background: white;
-            display: flex; justify-content: space-between; align-items: center;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05); z-index: 5;
+            padding: 20px; background: white; display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05); z-index: 10;
         }
         .gallery-grid {
-            padding: 15px;
-            display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;
-            overflow-y: auto; flex: 1; 
-            padding-bottom: 100px; /* Ruang untuk tombol bawah */
+            flex: 1; overflow-y: auto; padding: 15px;
+            display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;
+            align-content: start;
         }
         .photo-card {
-            background: white; border-radius: 15px; overflow: hidden;
-            box-shadow: 0 3px 10px rgba(0,0,0,0.05); position: relative;
-            animation: popUp 0.3s ease;
+            background: white; border-radius: 12px; overflow: hidden; position: relative;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1); animation: popIn 0.3s ease;
         }
-        .photo-card img { width: 100%; aspect-ratio: 3/4; object-fit: cover; display: block; }
+        .photo-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .del-badge {
+            position: absolute; top: 5px; right: 5px; background: rgba(0,0,0,0.5);
+            color: white; width: 25px; height: 25px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center; font-size: 0.8rem;
+        }
         
-        .delete-btn {
-            position: absolute; top: 8px; right: 8px;
-            width: 32px; height: 32px; background: rgba(255, 255, 255, 0.95);
-            color: var(--accent); border-radius: 50%; border: none;
-            display: flex; align-items: center; justify-content: center;
-            cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-            font-size: 1rem;
-        }
-
         .gallery-footer {
-            position: absolute; bottom: 0; left: 0; right: 0;
-            padding: 20px; background: white;
-            box-shadow: 0 -5px 20px rgba(0,0,0,0.05);
-            display: flex; gap: 10px; z-index: 10;
+            padding: 20px; background: white; box-shadow: 0 -5px 20px rgba(0,0,0,0.05);
+            display: flex; gap: 10px;
+        }
+        .btn-main {
+            flex: 1; background: var(--primary); color: white; border: none;
+            padding: 15px; border-radius: 15px; font-weight: 700; font-size: 1rem;
         }
 
-        .btn-upload {
-            flex: 1; background: var(--primary); color: white;
-            border: none; padding: 15px; border-radius: 15px;
-            font-weight: 700; font-size: 1rem;
-            box-shadow: 0 5px 15px rgba(74, 144, 226, 0.3);
-            display: flex; align-items: center; justify-content: center; gap: 10px;
-            cursor: pointer;
-        }
-        .btn-back-cam {
-            width: 60px; background: #EEF2F7; color: var(--text-main);
-            border-radius: 15px; border: none; font-size: 1.2rem;
-            cursor: pointer;
-        }
-
-        /* --- MODAL SETTINGS (IP SERVER) --- */
+        /* --- MODAL --- */
         .modal {
-            position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200;
+            position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 200;
             display: none; align-items: center; justify-content: center; backdrop-filter: blur(5px);
         }
-        .modal-box {
-            background: white; width: 85%; max-width: 320px; padding: 25px;
-            border-radius: 20px; box-shadow: 0 20px 50px rgba(0,0,0,0.2);
-        }
-        .input-group { margin-bottom: 15px; }
-        .input-group input {
-            width: 100%; padding: 12px; border: 1px solid #ddd;
-            border-radius: 8px; outline: none; background: #f9f9f9;
-        }
-        .modal-btns { display: flex; gap: 10px; margin-top: 15px; }
-        .btn-modal {
-            flex: 1; padding: 12px; border: none; border-radius: 10px; font-weight: 600; cursor: pointer;
-        }
+        .modal-box { background: white; width: 85%; max-width: 320px; padding: 25px; border-radius: 20px; }
+        .input-box { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 10px; margin: 10px 0; outline: none; }
 
-        @keyframes popUp { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        @keyframes popIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
     </style>
 </head>
 <body>
@@ -237,87 +175,76 @@
         
         <div class="page page-author">
             <div class="author-card">
-                <i class="fas fa-camera-retro" style="font-size: 3rem; color: var(--primary); margin-bottom: 20px;"></i>
+                <i class="fas fa-camera-retro" style="font-size: 3rem; color: var(--primary); margin-bottom: 15px;"></i>
                 <h2>PhotoboothSongo</h2>
-                <p style="color: var(--text-sub); margin: 0; font-weight: 600;">By Ernoba Creative</p>
-                <div style="width: 50px; height: 3px; background: var(--primary); margin: 20px auto;"></div>
-                <p style="font-size: 0.9rem; line-height: 1.6;">
-                    Aplikasi photobooth modern dengan tangkapan layar <b>Resolusi Tinggi</b> dan dukungan <b>Multi-Lensa</b>.
-                </p>
+                <p style="color:#777; font-size:0.9rem;">Created by <b>Ernoba Creative</b></p>
                 <div class="tech-stack">
                     <span class="tech-badge">Python Flask</span>
-                    <span class="tech-badge">Vanilla JS</span>
-                    <span class="tech-badge">Canvas API</span>
-                    <span class="tech-badge">BProto</span>
+                    <span class="tech-badge">JS Canvas</span>
+                    <span class="tech-badge">Walisongo Sragen</span>
                 </div>
-                <button class="nav-btn-back" onclick="slide(1)">
-                    Buka Kamera <i class="fas fa-arrow-right"></i>
+                <button class="btn-main" onclick="slide(1)" style="margin-top:20px; width:100%;">
+                    Mulai Foto <i class="fas fa-arrow-right"></i>
                 </button>
             </div>
         </div>
 
         <div class="page page-camera">
             <div class="camera-header">
-                <div class="settings-btn" onclick="toggleSettings()"><i class="fas fa-cog"></i></div>
+                <div class="icon-btn" onclick="toggleSettings()"><i class="fas fa-cog"></i></div>
                 <div class="brand-pill">ERNOBA</div>
-                <div class="settings-btn" id="connIcon" style="background: #ff4757;"><i class="fas fa-wifi"></i></div>
+                <div class="icon-btn" id="connIcon" style="background: #ff4757;"><i class="fas fa-wifi"></i></div>
             </div>
 
-            <video id="videoFeed" autoplay playsinline muted></video>
-            <div id="flash" class="flash-overlay"></div>
-            
-            <div id="countdownDisplay" style="position: absolute; top:50%; left:50%; transform:translate(-50%, -50%); font-size:8rem; color:white; font-weight:800; display:none; text-shadow: 0 0 30px rgba(0,0,0,0.5);">3</div>
+            <div class="video-container">
+                <video id="videoFeed" autoplay playsinline muted></video>
+                <div id="countdownDisplay" style="position: absolute; font-size:8rem; color:white; font-weight:800; display:none; text-shadow: 0 5px 20px rgba(0,0,0,0.5);">3</div>
+            </div>
 
             <div class="nav-hint nav-left" onclick="slide(0)"><i class="fas fa-chevron-left"></i></div>
             <div class="nav-hint nav-right" onclick="slide(2)"><i class="fas fa-images"></i></div>
 
             <div class="camera-controls">
-                <button class="btn-control" onclick="nextCamera()">
+                <div class="icon-btn" onclick="switchCamera()" style="width:50px; height:50px; background:rgba(255,255,255,0.2);">
                     <i class="fas fa-sync-alt"></i>
-                </button>
+                </div>
                 
-                <div class="shutter-outer" onclick="capturePhoto()">
+                <div class="shutter-outer" onclick="startCaptureSequence()">
                     <div class="shutter-inner"></div>
                 </div>
 
-                <button class="btn-control" onclick="toggleTimer()" id="timerBtn">
+                <div class="icon-btn" onclick="toggleTimer()" id="timerBtn" style="width:50px; height:50px; background:rgba(255,255,255,0.2);">
                     <span style="font-weight:bold; font-size:0.8rem;">OFF</span>
-                </button>
+                </div>
             </div>
         </div>
 
         <div class="page page-gallery">
             <div class="gallery-header">
-                <h2 style="margin:0; color: var(--text-main);">Galeri Foto</h2>
-                <span id="photoCount" style="color: var(--primary); font-weight:bold;">0 Foto</span>
+                <h3>Galeri</h3>
+                <span id="photoCount" style="color:var(--primary); font-weight:bold;">0 Foto</span>
             </div>
-
             <div class="gallery-grid" id="galleryGrid">
-                <div style="grid-column: span 2; text-align: center; color: #ccc; margin-top: 50px;">
-                    <i class="fas fa-image" style="font-size: 3rem; margin-bottom: 10px; display:block;"></i>
-                    Belum ada foto. Geser ke kiri untuk memotret.
                 </div>
-            </div>
-
             <div class="gallery-footer">
-                <button class="btn-back-cam" onclick="slide(1)"><i class="fas fa-camera"></i></button>
-                <button class="btn-upload" onclick="uploadAllPhotos()" id="uploadBtn">
-                    KIRIM KE SERVER <i class="fas fa-paper-plane"></i>
+                <button class="icon-btn" onclick="slide(1)" style="background:#eee; color:#333; width:60px; border-radius:15px;"><i class="fas fa-camera"></i></button>
+                <button class="btn-main" onclick="uploadAllPhotos()" id="uploadBtn">
+                    Kirim ke Server <i class="fas fa-paper-plane"></i>
                 </button>
             </div>
         </div>
     </div>
 
+    <div id="flash" class="flash-overlay"></div>
+
     <div class="modal" id="settingsModal">
         <div class="modal-box">
-            <h3 style="margin-top:0; color: var(--text-main);">Koneksi Server</h3>
-            <div class="input-group">
-                <label style="display:block; margin-bottom:5px; font-size:0.85rem; color:#888;">IP Server Target</label>
-                <input type="text" id="serverIpInput" placeholder="192.168.x.x">
-            </div>
-            <div class="modal-btns">
-                <button class="btn-modal" style="background:#EEF2F7; color:#555;" onclick="toggleSettings()">Tutup</button>
-                <button class="btn-modal" style="background:var(--primary); color:white;" onclick="saveSettings()">Simpan</button>
+            <h3>Konfigurasi</h3>
+            <label style="font-size:0.8rem; color:#666;">IP Server Python:</label>
+            <input type="text" id="serverIpInput" class="input-box" placeholder="192.168.x.x">
+            <div style="display:flex; gap:10px;">
+                <button class="btn-main" style="background:#ddd; color:#333;" onclick="toggleSettings()">Batal</button>
+                <button class="btn-main" onclick="saveSettings()">Simpan</button>
             </div>
         </div>
     </div>
@@ -325,282 +252,231 @@
     <canvas id="captureCanvas" style="display:none;"></canvas>
 
     <script>
-        // --- VARIABLES ---
-        let currentStream = null;
-        let videoDevices = [];
-        let currentDeviceIndex = 0;
-        let photos = []; // { id, blob, url }
-        let serverIp = localStorage.getItem('ernoba_server_ip') || '';
+        // --- STATE ---
+        let stream = null;
+        let facingMode = 'user'; // Default kamera depan
+        let photos = [];
         let timerSeconds = 0;
-        let viewIndex = 1; // 0=Author, 1=Camera, 2=Gallery
-
-        // --- DOM ELEMENTS ---
-        const videoElement = document.getElementById('videoFeed');
-        const mainContainer = document.getElementById('mainContainer');
+        let serverIp = localStorage.getItem('ernoba_ip') || '';
+        let viewIndex = 1;
 
         // --- INIT ---
-        window.addEventListener('load', async () => {
-            await getCameraDevices();
-            startCamera();
-            updateConnectionIcon();
+        window.addEventListener('load', () => {
+            initCamera(); // Start kamera langsung
+            updateConnIcon();
             
-            // Swipe Gestures
-            let touchStartX = 0;
-            document.body.addEventListener('touchstart', e => touchStartX = e.changedTouches[0].screenX);
+            // SWIPE GESTURE
+            let touchX = 0;
+            document.body.addEventListener('touchstart', e => touchX = e.changedTouches[0].screenX);
             document.body.addEventListener('touchend', e => {
-                const diff = touchStartX - e.changedTouches[0].screenX;
-                if (diff > 50 && viewIndex < 2) slide(viewIndex + 1); // Geser Kiri
-                if (diff < -50 && viewIndex > 0) slide(viewIndex - 1); // Geser Kanan
+                const diff = touchX - e.changedTouches[0].screenX;
+                if(Math.abs(diff) > 50) { // Threshold
+                    if(diff > 0 && viewIndex < 2) slide(viewIndex + 1);
+                    if(diff < 0 && viewIndex > 0) slide(viewIndex - 1);
+                }
             });
         });
 
-        // --- NAVIGATION ---
-        function slide(index) {
-            viewIndex = index;
-            mainContainer.style.transform = `translateX(-${index * 100}vw)`;
+        function slide(idx) {
+            viewIndex = idx;
+            // 33.33% karena width container 300%
+            const translate = -(idx * 33.333); 
+            document.getElementById('mainContainer').style.transform = `translateX(${translate}%)`;
         }
 
-        // --- CAMERA LOGIC (FIX LENSA & RESOLUSI) ---
-        async function getCameraDevices() {
-            try {
-                // Minta izin akses awal
-                await navigator.mediaDevices.getUserMedia({ video: true });
-                const devices = await navigator.mediaDevices.enumerateDevices();
-                
-                // Filter hanya video input
-                videoDevices = devices.filter(device => device.kind === 'videoinput');
-                
-                // Cari kamera depan untuk default awal
-                const frontIndex = videoDevices.findIndex(d => d.label.toLowerCase().includes('front') || d.label.toLowerCase().includes('user'));
-                if (frontIndex !== -1) currentDeviceIndex = frontIndex;
-
-            } catch (err) {
-                console.error("Error akses kamera:", err);
-                alert("Mohon izinkan akses kamera.");
-            }
-        }
-
-        async function startCamera() {
-            if (currentStream) {
-                currentStream.getTracks().forEach(track => track.stop());
+        // --- CAMERA SYSTEM (UPDATED) ---
+        async function initCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
             }
 
-            if (videoDevices.length === 0) return;
-
-            const deviceId = videoDevices[currentDeviceIndex].deviceId;
+            const video = document.getElementById('videoFeed');
             
-            // SETTING RESOLUSI TINGGI (4K Preference)
-            // Browser akan otomatis turun jika HP tidak kuat, tapi ini memaksa kualitas terbaik.
+            // Prioritas: Facing Mode (Depan/Belakang) daripada Device ID
+            // Kita coba resolusi tinggi dulu, kalau gagal catch error dan turunkan
             const constraints = {
+                audio: false,
                 video: {
-                    deviceId: { exact: deviceId },
-                    width: { ideal: 4096 }, 
-                    height: { ideal: 2160 }
+                    facingMode: facingMode, // 'user' atau 'environment'
+                    width: { ideal: 1920 }, // Full HD (Aman untuk mobile)
+                    height: { ideal: 1080 }
                 }
             };
 
             try {
-                currentStream = await navigator.mediaDevices.getUserMedia(constraints);
-                videoElement.srcObject = currentStream;
+                stream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = stream;
                 
-                // Cek apakah ini kamera depan? Jika ya, Mirror.
-                const label = videoDevices[currentDeviceIndex].label.toLowerCase();
-                const isFront = label.includes('front') || label.includes('depan') || label.includes('user');
-                videoElement.style.transform = isFront ? "scaleX(-1)" : "scaleX(1)";
+                // Mirror effect hanya untuk kamera depan
+                video.style.transform = (facingMode === 'user') ? "scaleX(-1)" : "none";
 
             } catch (err) {
-                alert("Gagal memuat kamera ini. Coba lensa lain.");
+                console.warn("Gagal HD, coba resolusi rendah...", err);
+                try {
+                    // Fallback ke resolusi standar jika HP kentang
+                    stream = await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: facingMode }
+                    });
+                    video.srcObject = stream;
+                    video.style.transform = (facingMode === 'user') ? "scaleX(-1)" : "none";
+                } catch (e) {
+                    alert("Kamera tidak dapat diakses. Pastikan izin browser aktif.");
+                }
             }
         }
 
-        function nextCamera() {
-            if (videoDevices.length < 2) return;
-            // Loop semua device yang tersedia
-            currentDeviceIndex = (currentDeviceIndex + 1) % videoDevices.length;
-            startCamera();
+        function switchCamera() {
+            // Toggle mode
+            facingMode = (facingMode === 'user') ? 'environment' : 'user';
+            initCamera();
         }
 
         function toggleTimer() {
-            if (timerSeconds === 0) timerSeconds = 3;
-            else if (timerSeconds === 3) timerSeconds = 5;
-            else timerSeconds = 0;
-
+            const arr = [0, 3, 5, 10];
+            let idx = arr.indexOf(timerSeconds);
+            timerSeconds = arr[(idx + 1) % arr.length];
+            
             const btn = document.getElementById('timerBtn');
             btn.innerHTML = timerSeconds === 0 
-                ? '<span style="font-weight:bold; font-size:0.8rem;">OFF</span>' 
-                : `<span style="font-weight:bold; color:var(--primary);">${timerSeconds}s</span>`;
+                ? 'OFF' 
+                : `<span style="color:var(--primary)">${timerSeconds}s</span>`;
         }
 
-        // --- CAPTURE HIGH RES ---
-        function capturePhoto() {
-            if (timerSeconds > 0) {
+        // --- CAPTURE LOGIC ---
+        function startCaptureSequence() {
+            if(timerSeconds > 0) {
                 let count = timerSeconds;
-                const display = document.getElementById('countdownDisplay');
-                display.innerText = count;
-                display.style.display = 'block';
+                const disp = document.getElementById('countdownDisplay');
+                disp.innerText = count;
+                disp.style.display = 'block';
                 
-                const intv = setInterval(() => {
+                const interval = setInterval(() => {
                     count--;
-                    if (count > 0) display.innerText = count;
-                    else {
-                        clearInterval(intv);
-                        display.style.display = 'none';
-                        snap();
+                    if(count > 0) {
+                        disp.innerText = count;
+                    } else {
+                        clearInterval(interval);
+                        disp.style.display = 'none';
+                        takePicture();
                     }
                 }, 1000);
             } else {
-                snap();
+                takePicture();
             }
         }
 
-        function snap() {
-            // Animasi Flash
+        function takePicture() {
+            // Efek Flash
             const flash = document.getElementById('flash');
             flash.style.opacity = 1;
-            setTimeout(() => flash.style.opacity = 0, 150);
+            setTimeout(() => flash.style.opacity = 0, 100);
 
-            // Setup Canvas dengan Ukuran ASLI Video (Bukan ukuran layar HP)
+            const video = document.getElementById('videoFeed');
             const canvas = document.getElementById('captureCanvas');
             const ctx = canvas.getContext('2d');
-            
-            // Ambil resolusi asli dari stream
-            const w = videoElement.videoWidth;
-            const h = videoElement.videoHeight;
-            
+
+            // Sesuaikan canvas dengan ukuran asli video stream
+            const w = video.videoWidth;
+            const h = video.videoHeight;
             canvas.width = w;
             canvas.height = h;
 
-            // Handle Mirroring pada Canvas
-            if (videoElement.style.transform.includes('scaleX(-1)')) {
+            // Logika Mirroring pada Canvas (PENTING)
+            // Jika kamera depan, kita harus flip canvas agar hasil foto sesuai preview
+            if (facingMode === 'user') {
                 ctx.translate(w, 0);
                 ctx.scale(-1, 1);
             }
 
-            ctx.drawImage(videoElement, 0, 0, w, h);
+            ctx.drawImage(video, 0, 0, w, h);
 
-            // Simpan High Quality (Quality 1.0)
+            // Simpan gambar
             canvas.toBlob(blob => {
-                const id = Date.now();
                 const url = URL.createObjectURL(blob);
+                const id = Date.now();
                 photos.push({ id, blob, url });
                 renderGallery();
                 
-                // Beri notifikasi kecil
-                const btn = document.querySelector('.nav-right');
-                btn.style.color = 'var(--primary)';
-                setTimeout(() => btn.style.color = 'white', 500);
-            }, 'image/jpeg', 1.0);
+                // Feedback visual kecil
+                document.querySelector('.nav-right').style.color = 'var(--primary)';
+                setTimeout(()=>document.querySelector('.nav-right').style.color = 'rgba(255,255,255,0.5)', 500);
+            }, 'image/jpeg', 0.95);
         }
 
-        // --- GALLERY ---
+        // --- GALLERY & UPLOAD ---
         function renderGallery() {
             const grid = document.getElementById('galleryGrid');
-            const countLabel = document.getElementById('photoCount');
-            
             grid.innerHTML = '';
-            countLabel.innerText = `${photos.length} Foto`;
+            document.getElementById('photoCount').innerText = `${photos.length} Foto`;
 
-            if (photos.length === 0) {
-                grid.innerHTML = `
-                    <div style="grid-column: span 2; text-align: center; color: #ccc; margin-top: 50px;">
-                        <i class="fas fa-image" style="font-size: 3rem; margin-bottom: 10px; display:block;"></i>
-                        Belum ada foto.
-                    </div>`;
-                return;
-            }
-
-            // Render urutan terbaru di atas
-            [...photos].reverse().forEach(photo => {
-                const div = document.createElement('div');
-                div.className = 'photo-card';
-                div.innerHTML = `
-                    <img src="${photo.url}">
-                    <button class="delete-btn" onclick="deletePhoto(${photo.id})"><i class="fas fa-times"></i></button>
+            [...photos].reverse().forEach(p => {
+                const el = document.createElement('div');
+                el.className = 'photo-card';
+                el.innerHTML = `
+                    <img src="${p.url}">
+                    <div class="del-badge" onclick="deletePhoto(${p.id})">✕</div>
                 `;
-                grid.appendChild(div);
+                grid.appendChild(el);
             });
         }
 
         function deletePhoto(id) {
-            if(!confirm("Hapus foto ini?")) return;
+            if(!confirm("Hapus?")) return;
             photos = photos.filter(p => p.id !== id);
             renderGallery();
         }
 
-        // --- SERVER & SETTINGS ---
-        function toggleSettings() {
-            const modal = document.getElementById('settingsModal');
-            if (modal.style.display === 'flex') modal.style.display = 'none';
-            else {
-                document.getElementById('serverIpInput').value = serverIp;
-                modal.style.display = 'flex';
-            }
-        }
-
-        function saveSettings() {
-            const ip = document.getElementById('serverIpInput').value;
-            // Panggil API Backend Python untuk set target (agar BProto siap)
-            fetch('/api/set_server', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ip: ip})
-            })
-            .then(r => r.json())
-            .then(res => {
-                if(res.status === 'ok') {
-                    serverIp = ip;
-                    localStorage.setItem('ernoba_server_ip', ip);
-                    toggleSettings();
-                    updateConnectionIcon();
-                    alert("Terhubung ke Server: " + ip);
-                } else {
-                    alert("IP Salah / Gagal");
-                }
-            });
-        }
-
-        function updateConnectionIcon() {
-            const icon = document.getElementById('connIcon');
-            icon.style.background = serverIp ? '#2ecc71' : '#ff4757';
-        }
-
         async function uploadAllPhotos() {
-            if (!serverIp) return alert("Setting IP Server dulu di ikon Gerigi.");
-            if (photos.length === 0) return alert("Belum ada foto.");
+            if (!serverIp) return alert("Set IP Server dulu di ikon Gerigi.");
+            if (photos.length === 0) return alert("Galeri kosong.");
 
             const btn = document.getElementById('uploadBtn');
-            const oriHtml = btn.innerHTML;
-            btn.innerHTML = 'Mengirim... <i class="fas fa-spinner fa-spin"></i>';
-            btn.style.opacity = 0.7;
+            const oriTxt = btn.innerHTML;
+            btn.innerHTML = 'Mengirim...';
+            btn.disabled = true;
 
             const formData = new FormData();
-            photos.forEach((p, i) => {
-                formData.append('file', p.blob, `foto_${p.id}.jpg`);
-            });
+            photos.forEach(p => formData.append('files[]', p.blob, `foto_${p.id}.jpg`));
 
             try {
-                // Kirim ke backend Python kita sendiri (/api/upload)
-                // Backend Python yang akan meneruskan ke Server via BProto
-                const res = await fetch('/api/upload', {
+                // Asumsi endpoint Python Flask di /upload
+                const res = await fetch(`http://${serverIp}/upload`, {
                     method: 'POST',
                     body: formData
                 });
-                const data = await res.json();
-                
-                if (data.status === 'ok') {
-                    alert(`Berhasil! ${data.count} foto dikirim.`);
+                if(res.ok) {
+                    alert("Terkirim Sukses!");
                     photos = [];
                     renderGallery();
-                    slide(1); // Balik ke kamera
+                    slide(1);
                 } else {
-                    alert("Gagal: " + (data.error || "Unknown"));
+                    alert("Gagal kirim ke server.");
                 }
-            } catch (err) {
-                alert("Error Koneksi: " + err);
+            } catch (e) {
+                alert("Error koneksi: " + e.message);
             } finally {
-                btn.innerHTML = oriHtml;
-                btn.style.opacity = 1;
+                btn.innerHTML = oriTxt;
+                btn.disabled = false;
             }
+        }
+
+        // --- SETTINGS ---
+        function toggleSettings() {
+            const m = document.getElementById('settingsModal');
+            if(m.style.display === 'flex') m.style.display = 'none';
+            else {
+                document.getElementById('serverIpInput').value = serverIp;
+                m.style.display = 'flex';
+            }
+        }
+        function saveSettings() {
+            serverIp = document.getElementById('serverIpInput').value;
+            localStorage.setItem('ernoba_ip', serverIp);
+            toggleSettings();
+            updateConnIcon();
+        }
+        function updateConnIcon() {
+            document.getElementById('connIcon').style.background = serverIp ? '#2ecc71' : '#ff4757';
         }
     </script>
 </body>
