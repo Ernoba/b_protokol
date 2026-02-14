@@ -1,4 +1,4 @@
-# syncb.py (Versi Final: Interaktif & Web GUI)
+# syncb.py (Versi Final: Fixed WebSocket Check)
 import sys
 import os
 import time
@@ -28,36 +28,74 @@ except ImportError:
     sys.exit(1)
 
 # --- KONFIGURASI GLOBAL ---
-# Default Port (Akan divalidasi saat runtime)
 WEB_PORT = 8080
 SYNC_PORT = 7002
 SYNC_CMD_DELETE = "SYNC_DELETE"
 
-# --- HELPER: CEK PORT INTERAKTIF ---
-def ask_valid_port(port, label):
-    """
-    Mengecek apakah port bisa digunakan. 
-    Jika tidak, meminta user menginputkan port baru.
-    """
-    while True:
-        try:
-            # Coba bind port dummy untuk tes ketersediaan
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            # SO_REUSEADDR agar tidak perlu menunggu TIME_WAIT
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            sock.bind(('0.0.0.0', port))
-            sock.close()
-            return port # Jika berhasil bind dan close, berarti port aman
-        except OSError:
-            print(f"\n[!] Port {label} ({port}) sedang SIBUK/TERPAKAI.")
-            try:
-                new_input = input(f"    >>> Masukkan Port {label} baru (contoh: {port+1}): ")
-                if not new_input.strip(): continue # Cegah input kosong
-                port = int(new_input)
-            except ValueError:
-                print("    [!] Harap masukkan angka yang valid.")
+# --- HELPER: CEK PORT (TCP & WebSocket) ---
+def is_port_free(port):
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind(('0.0.0.0', port))
+        sock.close()
+        return True
+    except OSError:
+        return False
 
-# --- STATE MANAGEMENT (Untuk Web UI) ---
+def ask_valid_sync_port(start_port):
+    """
+    Khusus untuk BProto: Harus memastikan Port Utama DAN Port+100 (WS) kosong.
+    """
+    port = start_port
+    while True:
+        ws_port = port + 100
+        
+        # Cek Port Utama & Port WS
+        main_free = is_port_free(port)
+        ws_free = is_port_free(ws_port)
+
+        if main_free and ws_free:
+            return port
+        
+        # Jika salah satu sibuk, lapor ke user
+        print(f"\n[!] Konflik Port Terdeteksi:")
+        if not main_free:
+            print(f"    - Port Utama TCP ({port}) sedang SIBUK.")
+        if not ws_free:
+            print(f"    - Port WebSocket ({ws_port}) sedang SIBUK.")
+            
+        print("    (BProto membutuhkan 2 port: N dan N+100)")
+        
+        try:
+            # Saran port berikutnya yang aman (lompat 1 angka)
+            suggestion = port + 1
+            new_input = input(f"    >>> Masukkan Port TCP baru (rekomendasi: {suggestion}): ")
+            if not new_input.strip(): 
+                port = suggestion # Jika user enter saja, pakai rekomendasi
+            else:
+                port = int(new_input)
+        except ValueError:
+            print("    [!] Harap masukkan angka yang valid.")
+
+def ask_valid_web_port(start_port):
+    port = start_port
+    while True:
+        if is_port_free(port):
+            return port
+        
+        print(f"\n[!] Port Web Dashboard ({port}) sedang SIBUK.")
+        try:
+            suggestion = port + 1
+            new_input = input(f"    >>> Masukkan Port Web baru (rekomendasi: {suggestion}): ")
+            if not new_input.strip():
+                port = suggestion
+            else:
+                port = int(new_input)
+        except ValueError:
+            print("    [!] Harap masukkan angka.")
+
+# --- STATE MANAGEMENT ---
 class AppState:
     def __init__(self):
         self.device_name = "SyncNode"
@@ -100,7 +138,7 @@ STATE = AppState()
 # --- WEB SERVER HANDLER ---
 class SyncWebHandler(http.server.SimpleHTTPRequestHandler):
     def log_message(self, format, *args):
-        pass # Matikan log request HTTP di terminal agar tidak berisik
+        pass 
 
     def do_GET(self):
         if self.path == '/':
@@ -160,7 +198,7 @@ class SyncWebHandler(http.server.SimpleHTTPRequestHandler):
             <table border="1" cellpadding="5" style="border-collapse: collapse; width: 100%;">
                 <tr><td width="30%">Device Name</td><td><b>{STATE.device_name}</b></td></tr>
                 <tr><td>Folder Path</td><td>{STATE.folder_path}</td></tr>
-                <tr><td>Sync Port</td><td>TCP {SYNC_PORT}</td></tr>
+                <tr><td>Sync Port</td><td>TCP {SYNC_PORT} / WS {SYNC_PORT + 100}</td></tr>
                 <tr><td>Auto Sync</td><td>{'✅ ON' if STATE.config['auto_sync'] else '❌ OFF'}</td></tr>
                 <tr><td>Allow Remote Delete</td><td>{'✅ ON' if STATE.config['allow_delete'] else '❌ OFF'}</td></tr>
             </table>
@@ -193,7 +231,6 @@ class SyncWebHandler(http.server.SimpleHTTPRequestHandler):
         return html
 
 def run_web_server():
-    # Menggunakan port yang sudah divalidasi di main
     try:
         socketserver.TCPServer.allow_reuse_address = True
         server = socketserver.TCPServer(("", WEB_PORT), SyncWebHandler)
@@ -280,21 +317,18 @@ class BProtoSync:
             if os.path.isfile(fp): self.loop_preventer.update_signature(fp)
 
     def start(self):
-        # Jalankan Web Server
         web_thread = threading.Thread(target=run_web_server, daemon=True)
         web_thread.start()
         print(f"[INFO] Web Dashboard aktif di: http://localhost:{WEB_PORT}")
 
-        # Jalankan BProto
         self.bp.start()
         
-        # Jalankan Watchdog
         event_handler = SyncHandler(self)
         observer = Observer()
         observer.schedule(event_handler, self.folder_path, recursive=False)
         observer.start()
 
-        print(f"[INFO] SyncNode Berjalan di Port {SYNC_PORT}.")
+        print(f"[INFO] SyncNode Berjalan di TCP:{SYNC_PORT}, WS:{SYNC_PORT+100}")
         print(f"[INFO] Tekan Ctrl+C untuk berhenti.\n")
 
         try:
@@ -312,7 +346,6 @@ class BProtoSync:
             STATE.add_peer(ip, name)
 
     def _on_error(self, msg):
-        # Filter error bind UDP yang wajar di satu mesin
         if "UDP Bind failed" in msg: return 
         STATE.add_log(f"Error: {msg}")
 
@@ -365,11 +398,11 @@ if __name__ == "__main__":
 
     print("--- KONFIGURASI PORT ---")
     
-    # 1. Validasi Port Sync (BProto) - INTERAKTIF
-    SYNC_PORT = ask_valid_port(port_arg, "SYNC (TCP)")
+    # 1. Validasi Port Sync (BProto & WS) - FIX: Cek N dan N+100
+    SYNC_PORT = ask_valid_sync_port(port_arg)
     
     # 2. Validasi Port Web - INTERAKTIF
-    WEB_PORT = ask_valid_port(8080, "WEB DASHBOARD")
+    WEB_PORT = ask_valid_web_port(8080)
     
     print("------------------------")
 
