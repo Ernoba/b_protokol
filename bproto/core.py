@@ -16,7 +16,7 @@ from .server import ServerManager
 from .websocket import WebSocketManager
 
 class BProto:
-    def __init__(self, device_name=None, secret=DEFAULT_SECRET, save_dir=DEFAULT_SAVE_DIR, port=None):
+    def __init__(self, device_name=None, secret=DEFAULT_SECRET, save_dir=DEFAULT_SAVE_DIR, port=None, app_id="general"):
         self.name = device_name if device_name else socket.gethostname()
         self.save_dir = os.path.abspath(save_dir)
         if not os.path.exists(self.save_dir): os.makedirs(self.save_dir)
@@ -34,7 +34,7 @@ class BProto:
         self.transfer = TransferManager(self.save_dir, self.events, self.security) 
         
         # 2. Network Managers
-        self.discovery = DiscoveryManager(self.name, self.tcp_port, self.events)
+        self.discovery = DiscoveryManager(self.name, self.tcp_port, self.events, app_id=app_id)
         self.server = ServerManager(self.tcp_port, self.security, self.transfer, self.events)
         
         # 3. WebSocket Manager (Baru)
