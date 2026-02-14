@@ -299,6 +299,15 @@
             // Mulai kamera default (depan)
             startCamera();
             updateConnIcon();
+
+            if(serverIp) {
+                // Auto-set ke backend saat refresh tanpa perlu buka modal
+                fetch('/api/set_server', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ip: serverIp })
+                }).catch(e => console.log("Auto-set IP failed", e));
+            }
             
             // Swipe Navigation
             let touchX = 0;
@@ -472,44 +481,41 @@
             if(confirm("Hapus?")) { photos = photos.filter(p => p.id !== id); renderGallery(); }
         }
 
+        // --- KODE BARU (PASTE DISINI) ---
         async function uploadAllPhotos() {
-            // Validasi IP
-            let targetIp = serverIp.trim();
-            if (!targetIp) return alert("IP Server belum diisi! Klik ikon gerigi.");
-            
-            // Tambah http:// jika belum ada
-            if (!targetIp.startsWith('http')) {
-                targetIp = 'http://' + targetIp;
-            }
-            
-            // Perbaikan Port: Jika user lupa port, ingatkan atau coba default (tapi tidak bisa ditebak pasti)
-            // Asumsi: Biarkan user isi lengkap, tapi kita bersihkan stringnya
-            
             if (photos.length === 0) return alert("Galeri kosong.");
+            
+            // Cek apakah IP sudah diset di Python (via saveSettings)
+            if (!serverIp) return alert("IP Server belum diisi! Klik ikon gerigi.");
 
             const btn = document.getElementById('uploadBtn');
             const oriTxt = btn.innerHTML;
             btn.innerHTML = 'Mengirim...'; btn.disabled = true;
 
             const formData = new FormData();
-            photos.forEach(p => formData.append('files[]', p.blob, `foto_${p.id}.jpg`));
+            // Masukkan semua foto ke form
+            photos.forEach(p => formData.append('file', p.blob, `foto_${p.id}.jpg`)); 
 
             try {
-                // Gunakan URL yang sudah dirapikan
-                const res = await fetch(`${targetIp}/upload`, {
+                // PERBAIKAN: Kirim ke '/api/upload' (Local Python), BUKAN langsung ke IP Server
+                const res = await fetch('/api/upload', {
                     method: 'POST',
-                    body: formData,
-                    mode: 'cors' // Pastikan server support CORS
+                    body: formData
                 });
 
+                const data = await res.json();
+
                 if(res.ok) {
-                    alert("✅ Terkirim Sukses!");
-                    photos = []; renderGallery(); slide(1);
+                    alert(`✅ Sukses! ${data.count} foto sedang dikirim oleh Python.`);
+                    photos = []; 
+                    renderGallery(); 
+                    slide(1); // Kembali ke kamera
                 } else {
-                    alert(`❌ Gagal: Server merespon ${res.status} (${res.statusText})`);
+                    alert(`❌ Gagal: ${data.error || 'Terjadi kesalahan di backend'}`);
                 }
             } catch (e) {
-                alert(`❌ Error Koneksi: ${e.message}\n\nTips: Pastikan HP dan Laptop di WiFi yang sama. Cek IP & Port.`);
+                console.error(e);
+                alert(`❌ Error Koneksi ke Local Flask: ${e.message}`);
             } finally {
                 btn.innerHTML = oriTxt; btn.disabled = false;
             }
@@ -523,12 +529,44 @@
                 m.style.display = 'flex';
             }
         }
-        function saveSettings() {
-            serverIp = document.getElementById('serverIpInput').value.trim();
-            localStorage.setItem('ernoba_ip', serverIp);
-            toggleSettings();
-            updateConnIcon();
+        // --- KODE BARU (PASTE DISINI) ---
+        async function saveSettings() {
+            const inputIp = document.getElementById('serverIpInput').value.trim();
+            if(!inputIp) return alert("IP tidak boleh kosong");
+
+            // Simpan di LocalStorage
+            localStorage.setItem('ernoba_ip', inputIp);
+            serverIp = inputIp;
+
+            // Kirim IP ke client.py agar Python tahu tujuan pengiriman
+            try {
+                const btn = document.querySelector('#settingsModal .btn-main:last-child');
+                const oriText = btn.innerText;
+                btn.innerText = "Menyimpan...";
+                
+                // Panggil API lokal Python
+                const res = await fetch('/api/set_server', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ip: inputIp })
+                });
+
+                const data = await res.json();
+                
+                if (data.status === "ok") {
+                    toggleSettings();
+                    updateConnIcon();
+                    alert(`✅ Terhubung ke Sistem Python!\nTarget Server: ${inputIp}`);
+                } else {
+                    alert("Gagal set IP di Python: " + data.message);
+                }
+                btn.innerText = oriText;
+            } catch (e) {
+                alert("Gagal menghubungi client.py lokal. Pastikan script python berjalan.");
+                console.error(e);
+            }
         }
+
         function updateConnIcon() {
             document.getElementById('connIcon').style.background = serverIp ? '#2ecc71' : '#ff4757';
         }
