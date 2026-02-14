@@ -4,7 +4,6 @@ import string
 import shutil
 import time
 from flask import Flask, render_template, request, jsonify, send_file
-# TAMBAHAN IMPORT: ImageFilter, ImageDraw
 from PIL import Image, ImageEnhance, ImageOps, ImageFilter, ImageDraw
 
 app = Flask(__name__)
@@ -113,6 +112,21 @@ def apply_adjustments(img, config):
 
     return img
 
+def scan_folder_content(folder_path):
+    """Fungsi helper untuk scan real-time"""
+    if not folder_path or not os.path.exists(folder_path):
+        return []
+    
+    exts = ('.jpg', '.jpeg', '.png', '.webp', '.bmp')
+    # Scan file secara real-time
+    try:
+        files = [f.name for f in os.scandir(folder_path) if f.is_file() and f.name.lower().endswith(exts)]
+        files.sort()
+        return files
+    except Exception as e:
+        print(f"Error scanning: {e}")
+        return []
+
 def apply_watermark(img, config):
     wm_filename = config.get('wm_filename')
     if not wm_filename: return img
@@ -192,21 +206,37 @@ def list_dirs():
 
 @app.route('/api/scan-images', methods=['POST'])
 def scan_images():
-    path = request.json.get('path')
-    if os.path.isdir(path):
-        CACHE['input_folder'] = path
-        exts = ('.jpg', '.jpeg', '.png', '.webp', '.bmp')
-        files = [f for f in os.listdir(path) if f.lower().endswith(exts)]
-        files.sort()
+    req_path = request.json.get('path')
+    # Prioritas: Path dari Client > Path di Cache
+    target_path = req_path if req_path else CACHE.get('input_folder')
+
+    if target_path and os.path.isdir(target_path):
+        CACHE['input_folder'] = target_path
+        files = scan_folder_content(target_path)
         CACHE['files_in_folder'] = files
-        if files: CACHE['current_file'] = files[0]
-        return jsonify({'status': 'success', 'files': files})
+        
+        # Logika seleksi file yang lebih pintar
+        if files:
+            # Jika current_file kosong atau tidak ada di list baru, pilih yang pertama
+            if not CACHE['current_file'] or CACHE['current_file'] not in files:
+                CACHE['current_file'] = files[0]
+        else:
+            CACHE['current_file'] = None
+
+        return jsonify({
+            'status': 'success', 
+            'files': files, 
+            'current_folder': target_path,
+            'current_file': CACHE['current_file']
+        })
+    
     return jsonify({'status': 'error', 'msg': 'Folder not found'})
 
 @app.route('/api/set-current', methods=['POST'])
 def set_current():
     filename = request.json.get('filename')
-    if filename in CACHE['files_in_folder']:
+    # Validasi sederhana, izinkan set meskipun file baru masuk belum ter-cache sempurna
+    if filename:
         CACHE['current_file'] = filename
         return jsonify({'status': 'ok'})
     return jsonify({'status': 'fail'})
@@ -244,40 +274,62 @@ def wm_serve(filename):
 def preview_live():
     config = request.json
     filename = CACHE.get('current_file')
+    
+    # Fail-safe: Jika tidak ada file terpilih tapi folder ada isinya, pilih satu
+    if not filename and CACHE['files_in_folder']:
+        filename = CACHE['files_in_folder'][0]
+        CACHE['current_file'] = filename
+
     if not filename: return "No Image", 404
+    
     try:
         path = os.path.join(CACHE['input_folder'], filename)
-        img = Image.open(path)
-        img.thumbnail((1000, 1000)) # Resize preview
-        img = apply_adjustments(img, config)
-        img = apply_watermark(img, config)
-        img = img.convert("RGB")
-        img_io = io.BytesIO()
-        img.save(img_io, 'JPEG', quality=85)
-        img_io.seek(0)
+        if not os.path.exists(path): return "File missing", 404
+
+        # PERBAIKAN: Gunakan 'with' agar file langsung ditutup setelah dibaca
+        with Image.open(path) as img:
+            img.thumbnail((1000, 1000)) 
+            img = apply_adjustments(img, config)
+            img = apply_watermark(img, config)
+            img = img.convert("RGB")
+            
+            img_io = io.BytesIO()
+            img.save(img_io, 'JPEG', quality=85)
+            img_io.seek(0)
+            
         return send_file(img_io, mimetype='image/jpeg')
     except Exception as e:
-        print(e)
+        print(f"Preview Error: {e}")
         return str(e), 500
 
-# --- ROUTE BARU UNTUK MEMANTAU STATUS FOLDER ---
 @app.route('/api/check-updates', methods=['POST'])
 def check_updates():
-    # Ambil folder yang sedang aktif dari CACHE server
-    path = CACHE.get('input_folder') 
+    path = CACHE.get('input_folder')
     
+    # Jika path kosong (server restart), coba minta client kirim ulang (opsional)
+    # Tapi di sini kita return false agar client tidak error
     if not path or not os.path.isdir(path):
-        return jsonify({'status': 'error', 'hash': 0})
+        return jsonify({'status': 'ok', 'files': [], 'changed': False})
     
-    try:
-        stat = os.stat(path)
-        # Hash kombinasi waktu modifikasi + jumlah file
-        # Ini mendeteksi file baru, file hapus, atau file update
-        folder_hash = f"{stat.st_mtime}_{len(os.listdir(path))}"
-        return jsonify({'status': 'ok', 'hash': folder_hash})
-    except Exception as e:
-        return jsonify({'status': 'error', 'msg': str(e)})
+    current_files = scan_folder_content(path)
+    cached_files = CACHE.get('files_in_folder', [])
     
+    if current_files != cached_files:
+        CACHE['files_in_folder'] = current_files
+        
+        # Auto-switch logika
+        if CACHE['current_file'] not in current_files:
+            CACHE['current_file'] = current_files[0] if current_files else None
+            
+        return jsonify({
+            'status': 'ok', 
+            'changed': True, 
+            'files': current_files,
+            'current_file': CACHE['current_file']
+        })
+    
+    return jsonify({'status': 'ok', 'changed': False})
+
 @app.route('/process-batch', methods=['POST'])
 def process_batch():
     data = request.json
@@ -293,7 +345,7 @@ def process_batch():
     if not os.path.exists(out_folder): os.makedirs(out_folder)
     
     target_files = [CACHE['current_file']] if mode == 'current' and CACHE['current_file'] else CACHE['files_in_folder']
-        
+    
     success = 0
     errors = 0
     
@@ -305,35 +357,50 @@ def process_batch():
             out_fname = name_part + ext_map.get(fmt, '.jpg')
             out_path = os.path.join(out_folder, out_fname)
             
-            img = Image.open(in_path)
-            if resize_w > 0 and img.width > resize_w:
-                ratio = resize_w / float(img.width)
-                h = int(img.height * ratio)
-                img = img.resize((resize_w, h), Image.Resampling.LANCZOS)
+            # PERBAIKAN: Gunakan 'with' agar file aman dihapus di Windows
+            with Image.open(in_path) as img:
+                if resize_w > 0 and img.width > resize_w:
+                    ratio = resize_w / float(img.width)
+                    h = int(img.height * ratio)
+                    img = img.resize((resize_w, h), Image.Resampling.LANCZOS)
+                    
+                img = apply_adjustments(img, config)
+                img = apply_watermark(img, config)
                 
-            img = apply_adjustments(img, config)
-            img = apply_watermark(img, config)
+                if fmt == 'JPEG':
+                    img = img.convert("RGB")
+                    img.save(out_path, quality=quality, subsampling=0)
+                elif fmt == 'PNG':
+                    img.save(out_path, compress_level=int((100-quality)/10) if quality < 100 else 0) 
+                elif fmt == 'WEBP':
+                    img.save(out_path, quality=quality, method=6)
             
-            if fmt == 'JPEG':
-                img = img.convert("RGB")
-                img.save(out_path, quality=quality, subsampling=0)
-            elif fmt == 'PNG':
-                img.save(out_path, compress_level=int((100-quality)/10) if quality < 100 else 0) 
-            elif fmt == 'WEBP':
-                img.save(out_path, quality=quality, method=6)
-            
+            # File sudah ditutup di sini, aman untuk dihapus
             success += 1
             if delete_source and os.path.abspath(in_path) != os.path.abspath(out_path):
                 os.remove(in_path)
+
         except Exception as e:
             print(f"Error {fname}: {e}")
             errors += 1
             
     if delete_source:
-        exts = ('.jpg', '.jpeg', '.png', '.webp')
-        CACHE['files_in_folder'] = [f for f in os.listdir(CACHE['input_folder']) if f.lower().endswith(exts)]
-            
-    return jsonify({'status': 'success', 'processed': success, 'errors': errors})
+        path = CACHE.get('input_folder')
+        remaining_files = scan_folder_content(path)
+        CACHE['files_in_folder'] = remaining_files
+        
+        if not remaining_files:
+            CACHE['current_file'] = None
+        elif CACHE['current_file'] not in remaining_files:
+            CACHE['current_file'] = remaining_files[0]
+
+    return jsonify({
+        'status': 'success', 
+        'processed': success, 
+        'errors': errors,
+        'remaining_files': CACHE['files_in_folder']
+    })
 
 if __name__ == '__main__':
-    app.run(debug=True, port=3300)
+    # TAMBAHAN: use_reloader=False mencegah server restart saat file berubah
+    app.run(debug=True, use_reloader=False, port=3300)

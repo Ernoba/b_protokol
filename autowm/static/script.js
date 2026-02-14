@@ -225,47 +225,33 @@ function selectFolder() {
 async function loadGallery(path) {
     if(!path) return;
     
-    // --- TAMBAHAN: Mulai memantau folder ini ---
-    startMonitoring(path); 
-    // ------------------------------------------
+    // Set input path visual agar user tahu folder mana yang aktif
+    if(els.inputPath) els.inputPath.value = path;
+
+    // Mulai memantau folder ini (Polling)
+    startMonitoring(); 
 
     const grid = document.getElementById('gallery-list');
     grid.innerHTML = '<p style="padding:10px; color:#888;">Scanning...</p>';
     
-    const res = await fetch('/api/scan-images', {
-        method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({path})
-    });
-    const data = await res.json();
-    
-    grid.innerHTML = '';
-    // Update jumlah file
-    document.getElementById('file-count').innerText = data.files ? data.files.length : 0; // Pastikan Anda punya elemen dengan ID 'file-count' di HTML, atau hapus baris ini jika error.
+    // Panggil scan awal
+    try {
+        const res = await fetch('/api/scan-images', {
+            method: 'POST', 
+            headers: {'Content-Type':'application/json'}, 
+            body: JSON.stringify({path})
+        });
+        const data = await res.json();
+        
+        // Render UI menggunakan helper baru
+        updateGalleryUI(data.files, data.current_file);
 
-    if(data.status === 'error' || !data.files || data.files.length === 0) {
-        grid.innerHTML = '<p style="padding:10px; color:#888;">No images found.</p>';
-        showEmptyState(true);
-        return;
+    } catch(e) {
+        console.error("Load gallery failed", e);
+        grid.innerHTML = '<p style="padding:10px; color:red;">Connection Error</p>';
     }
-    
-    showEmptyState(false);
-    data.files.forEach((f, idx) => {
-        const thumb = document.createElement('div');
-        thumb.className = 'thumb';
-        // Hapus class 'active' default di sini, kita handle nanti
-        thumb.innerHTML = `<img src="/api/get-thumbnail?file=${encodeURIComponent(f)}" loading="lazy">`;
-        thumb.onclick = () => changeActiveImage(f, thumb);
-        
-        // Simpan nama file di atribut data agar mudah dicari nanti
-        thumb.dataset.filename = f; 
-        
-        grid.appendChild(thumb);
-    });
-    
-    // Auto load first image (Standard behavior)
-    if(grid.children.length > 0) {
-        changeActiveImage(data.files[0], grid.children[0]);
-    }
-}
+} 
+// PERHATIKAN: Tidak ada kode menggantung di sini. Langsung lanjut ke fungsi berikutnya.
 
 function showEmptyState(show) {
     if(show) {
@@ -377,58 +363,93 @@ async function startProcess() {
     } catch(e) { 
         alert('Error communicating with server'); 
     } finally { 
+        if(deleteSource) {
+            // Panggil update sekali secara paksa agar UI langsung bersih
+            checkForUpdates(); 
+        }
         btn.innerText = originalText; 
         btn.disabled = false; 
     }
 }
 
-/* --- REAL-TIME FOLDER MONITORING --- */
+/* --- REAL-TIME FOLDER MONITORING (REVISED) --- */
 
-function startMonitoring(path) {
-    // 1. Hentikan interval lama jika ada (supaya tidak numpuk)
-    if (state.monitorInterval) {
-        clearInterval(state.monitorInterval);
-    }
+function startMonitoring() {
+    // Hentikan interval lama agar tidak dobel
+    if (state.monitorInterval) clearInterval(state.monitorInterval);
 
-    // 2. Reset hash awal
-    state.lastFolderHash = '';
-
-    // 3. Cek status awal (First Run) untuk simpan hash saat ini
-    fetch('/api/check-updates', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: path }) // Kirim path folder aktif (ubah backend jika perlu support body)
-        // CATAAN: Di backend python sebelumnya kita pakai CACHE['input_folder'], 
-        // jadi tidak kirim body pun tidak apa-apa jika backend mengambil dari CACHE.
-        // Tapi agar aman, pastikan backend Anda konsisten.
-    })
-    .then(r => r.json())
-    .then(data => {
-        if(data.status === 'ok') state.lastFolderHash = data.hash;
-    });
-
-    // 4. Mulai Interval setiap 2 detik
-    state.monitorInterval = setInterval(() => {
-        checkForUpdates(path);
-    }, 2000);
+    // Mulai Interval setiap 2 detik
+    state.monitorInterval = setInterval(checkForUpdates, 2000);
 }
 
-async function checkForUpdates(path) {
+async function checkForUpdates() {
     try {
-        // Panggil API check-updates (Pastikan route ini sudah ada di Python)
+        // Kita TIDAK perlu kirim path, karena server sudah simpan path terakhir di CACHE backend
         const res = await fetch('/api/check-updates', { method: 'POST' });
         const data = await res.json();
 
-        if (data.status === 'ok') {
-            // Jika hash server beda dengan hash terakhir di browser
-            if (state.lastFolderHash && data.hash !== state.lastFolderHash) {
-                console.log("New content detected!");
-                state.lastFolderHash = data.hash; // Update hash
-                await refreshGalleryAndSelectNewest(path); // Reload UI
-            }
+        // Server merespon: { status: 'ok', changed: true/false, files: [...], current_file: ... }
+        if (data.status === 'ok' && data.changed) {
+            console.log("Perubahan terdeteksi di folder!");
+            
+            // Render ulang galeri dengan data baru dari server
+            updateGalleryUI(data.files, data.current_file);
         }
     } catch (e) {
-        console.error("Monitoring skipped:", e);
+        console.error("Monitoring error (server mati?):", e);
+        // Jangan stop interval, biarkan mencoba lagi nanti (auto-reconnect logic)
+    }
+}
+
+function updateGalleryUI(files, currentFile) {
+    const grid = document.getElementById('gallery-list');
+    
+    // Update jumlah file counter
+    const countEl = document.getElementById('file-count');
+    if(countEl) countEl.innerText = files ? files.length : 0;
+
+    // KONDISI 1: Folder Kosong (Habis diproses atau memang kosong)
+    if (!files || files.length === 0) {
+        grid.innerHTML = '<div style="padding:20px; text-align:center; color:#666;"><h4>Folder Kosong</h4><p>Menunggu foto baru masuk...</p></div>';
+        showEmptyState(true); // Sembunyikan editor, tampilkan pesan kosong
+        return;
+    }
+    
+    // KONDISI 2: Ada File
+    showEmptyState(false); // Tampilkan editor
+    grid.innerHTML = ''; // Reset grid
+
+    files.forEach(f => {
+        const thumb = document.createElement('div');
+        thumb.className = 'thumb';
+        
+        // Tandai yang aktif
+        if (f === currentFile) thumb.classList.add('active');
+
+        thumb.innerHTML = `<img src="/api/get-thumbnail?file=${encodeURIComponent(f)}" loading="lazy">`;
+        thumb.dataset.filename = f;
+        thumb.onclick = () => changeActiveImage(f, thumb);
+        
+        grid.appendChild(thumb);
+    });
+
+    // Jika server memberitahu ada file aktif (current_file), muat preview-nya
+    if (currentFile) {
+        // Cek apakah preview yang tampil sekarang sudah sesuai?
+        // Kita bisa simpan state lokal untuk cek, tapi triggerPreview aman dipanggil ulang.
+        
+        // Cari elemen thumb yang aktif untuk scroll view
+        const activeThumb = grid.querySelector(`.thumb[data-filename="${currentFile}"]`);
+        if(activeThumb) activeThumb.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        
+        // Panggil preview (gambar besar)
+        // Kita panggil changeActiveImage secara internal tanpa fetch set-current lagi 
+        // karena server sudah tahu current-nya.
+        // Tapi untuk simplisitas, triggerPreview() saja cukup jika server sudah sync.
+        
+        // Update visual selection (jika belum)
+        state.currentPath = currentFile; // Update state lokal nama file
+        triggerPreview(); 
     }
 }
 
