@@ -36,11 +36,9 @@ def add_log(msg, type="info"):
     print(f"[{type.upper()}] {msg}")
 
 # --- FUNGSI PENGIRIM (DIPERBARUI) ---
+# Di file client.py
+
 def send_sync(filepath, filename):
-    """
-    Mengirim file secara langsung dan mengembalikan True/False.
-    Tidak ada Threading di sini.
-    """
     target = STATE["target_ip"]
     if not target:
         add_log(f"Gagal: {filename} (Server belum diset!)", "error")
@@ -48,19 +46,27 @@ def send_sync(filepath, filename):
 
     add_log(f"Mengirim: {filename} -> {target}...", "info")
     
-    # Proses Kirim (Program akan menunggu di sini sampai selesai/gagal)
-    sukses = STATE["client"].send_file(target, filepath)
-    
-    if sukses:
-        add_log(f"✅ Terkirim: {filename}", "success")
-        try: os.remove(filepath)
-        except: pass
-        return True
-    else:
-        # Error detail sudah dicetak oleh bproto ke console
-        add_log(f"❌ Gagal mengirim: {filename} (Cek koneksi/Firewall)", "error")
+    # --- UBAH BAGIAN INI ---
+    try:
+        # Panggil fungsi internal bproto untuk melihat error aslinya
+        sukses = STATE["client"].send_file(target, filepath)
+        
+        if sukses:
+            add_log(f"✅ Terkirim: {filename}", "success")
+            try: os.remove(filepath)
+            except: pass
+            return True
+        else:
+            # Ini akan muncul jika bproto menangkap error tapi me-return False
+            add_log(f"❌ Ditolak Server: {filename}", "error")
+            return False
+            
+    except Exception as e:
+        # INI YANG PENTING: Menampilkan error spesifik (misal: TypeError)
+        add_log(f"CRASH: {str(e)}", "error")
+        print(f"DEBUG ERROR DETAIL: {e}") # Cek terminal
         return False
-
+    
 # --- ROUTES ---
 @app.route('/')
 def index():
