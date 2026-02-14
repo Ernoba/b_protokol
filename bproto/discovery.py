@@ -6,11 +6,13 @@ from .config import PROTOCOL_ID, DISCOVERY_PORT
 from .protocol import PacketType
 
 class DiscoveryManager:
-    def __init__(self, device_name, tcp_port, events):
+# 1. Tambahkan parameter app_id di __init__
+    def __init__(self, device_name, tcp_port, events, app_id="bproto-default"):
         self.device_name = device_name
         self.tcp_port = tcp_port
         self.events = events
-        self.peers = {} # IP -> Info
+        self.app_id = app_id  # <--- Simpan App ID
+        self.peers = {} 
         self.running = False
 
     def start_listener(self):
@@ -26,7 +28,8 @@ class DiscoveryManager:
         payload = json.dumps({
             "t": PacketType.PING, 
             "n": self.device_name, 
-            "p": self.tcp_port
+            "p": self.tcp_port,
+            "a": self.app_id  # <--- Kirim App ID (key 'a')
         }).encode()
         try:
             sock.sendto(PROTOCOL_ID + payload, ('<broadcast>', DISCOVERY_PORT))
@@ -51,8 +54,10 @@ class DiscoveryManager:
                 
                 msg = json.loads(data[len(PROTOCOL_ID):])
                 
-                # Jangan simpan diri sendiri
-                if msg['n'] == self.device_name and msg['p'] == self.tcp_port:
+                # --- FILTER BARU DI SINI ---
+                # Jika App ID paket tidak sama dengan App ID saya, abaikan!
+                remote_app = msg.get('a', 'bproto-default')
+                if remote_app != self.app_id:
                     continue
 
                 ip = addr[0]
@@ -67,9 +72,9 @@ class DiscoveryManager:
                     resp = json.dumps({
                         "t": PacketType.PONG, 
                         "n": self.device_name, 
-                        "p": self.tcp_port
+                        "p": self.tcp_port,
+                        "a": self.app_id # <--- Balas dengan App ID juga
                     }).encode()
                     sock.sendto(PROTOCOL_ID + resp, addr)
-            except Exception:
-                pass
+            except Exception: pass
         sock.close()

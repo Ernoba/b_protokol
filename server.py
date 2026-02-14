@@ -55,7 +55,8 @@ def main():
     # Init BProto (Struktur baru otomatis menangani init modules)
     server = BProto(
         device_name="Server-Utama",
-        secret="ernoba-root", 
+        secret="ernoba-root",
+        app_id="photobooth-v1", 
         save_dir=save_path
     )
     

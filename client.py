@@ -29,7 +29,8 @@ STATE = {
 # Kita paksa secret sama dengan server ("ernoba-root")
 STATE["client"] = BProto(
     device_name="Ernoba-Photobooth-Client", 
-    secret="ernoba-root"  # <--- TAMBAHKAN INI
+    secret="ernoba-root",
+    app_id="photobooth-v1"# <--- TAMBAHKAN INI
 )
 
 STATE["client"].start()

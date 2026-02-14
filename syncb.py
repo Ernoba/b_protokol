@@ -328,7 +328,8 @@ class BProtoSync:
             save_dir=self.folder_path, 
             port=port,
             device_name=f"SyncNode-{port}",
-            secret=SYNC_SECRET_KEY
+            secret=SYNC_SECRET_KEY,
+            app_id="sync-net-v1"
         )
         STATE.device_name = self.bp.name
         
