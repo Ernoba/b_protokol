@@ -4,6 +4,8 @@ import threading
 import struct
 import json
 import uuid
+import os
+import time
 from .protocol import PacketType
 from .utils import SystemUtils
 
@@ -26,6 +28,9 @@ class ServerManager:
 
     def _accept_loop(self):
         serv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        # Fix: Allow reuse address agar tidak error "Address already in use" saat restart cepat
+        serv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        
         try:
             serv.bind(('0.0.0.0', self.port))
             serv.listen(5)
@@ -41,8 +46,11 @@ class ServerManager:
 
     def _handle_client(self, conn, addr):
         client_ip = addr[0]
+        # [DEBUG] Tampilkan siapa yang connect
+        print(f"[DEBUG] Koneksi masuk dari: {client_ip}")
+
         try:
-            # Baca Header Length (4 bytes big-endian)
+            # Baca Header Length
             raw_len = conn.recv(4)
             if not raw_len: return
             header_len = struct.unpack("!I", raw_len)[0]
@@ -55,20 +63,25 @@ class ServerManager:
             auth_data = header.get('auth', {})
             authorized = False
 
+            # Cek Token Lama
             if auth_data.get('auth_mode') == "TOKEN":
                 if self.security.verify_token(client_ip, auth_data.get('data')):
                     authorized = True
-                    # Kirim OK + Resume Offset
+                    # Kirim OK
+                    print(f"[DEBUG] {client_ip} Login via TOKEN sukses.")
                     self._send_json(conn, {"status": "OK", "resume_offset": self._get_local_offset(header)})
 
+            # Jika Token Gagal, Lakukan Handshake Baru
             if not authorized:
-                # Challenge-Response
+                print(f"[DEBUG] {client_ip} Meminta Handshake Baru...")
                 nonce = uuid.uuid4().hex[:8]
                 self._send_json(conn, {"status": "CHALLENGE", "nonce": nonce})
                 
-                client_proof = conn.recv(64).decode() # Terima SHA256
+                # FIX: Baca proof dengan buffer aman (bukan fix 64 byte yg bisa macet)
+                client_proof = conn.recv(1024).decode().strip()
                 
                 if self.security.verify_handshake(nonce, client_proof):
+                    print(f"[DEBUG] {client_ip} Handshake BERHASIL.")
                     new_token = self.security.create_session_for(client_ip)
                     self._send_json(conn, {
                         "status": "OK", 
@@ -76,31 +89,32 @@ class ServerManager:
                         "resume_offset": self._get_local_offset(header)
                     })
                 else:
+                    print(f"[DEBUG] {client_ip} Handshake GAGAL (Wrong Secret).")
                     self._send_json(conn, {"status": "FAIL"})
                     return
 
-            # 2. ROUTING TIPE PAKET
+            # 2. PROSES TIPE PAKET
             msg_type = header.get('type')
             
             if msg_type == PacketType.FILE_INIT:
+                fname = header['file']['name']
+                print(f"[DEBUG] Menerima file: {fname}")
                 self.transfer.receive_stream(conn, header['file'])
                 
             elif msg_type == PacketType.MESSAGE:
-                # Fitur Baru: Chat
                 content = header.get('content')
-                self.events.log(f"Message from {client_ip}: {content}")
+                self.events.log(f"Chat dari {client_ip}: {content}")
                 self.events.emit("message", client_ip, content)
                 
             elif msg_type == PacketType.CLIPBOARD:
-                # Fitur Baru: Clipboard
                 content = header.get('content')
                 success = SystemUtils.copy_to_clipboard(content)
-                status = "Copied" if success else "Failed"
-                self.events.log(f"Clipboard received from {client_ip}: {status}")
-                self.events.emit("clipboard", content)
+                self.events.log(f"Clipboard dari {client_ip}: {'Sukses' if success else 'Gagal'}")
 
         except Exception as e:
             self.events.error(f"Client Handle Error: {e}")
+            import traceback
+            traceback.print_exc() # Print error detail ke terminal server
         finally:
             conn.close()
 
@@ -110,11 +124,19 @@ class ServerManager:
         sock.sendall(js)
 
     def _get_local_offset(self, header):
+        # FIX FINAL: Logic sederhana & aman
         if header.get('type') != PacketType.FILE_INIT: return 0
         
-        # Logic yang benar: Cek ukuran file yang sudah ada
-        fname = header['file']['name']
-        fpath = os.path.join(self.transfer.save_dir, fname)
-        
-        # Jika file ada, return ukurannya (int). Jika tidak, return 0.
-        return os.path.getsize(fpath) if os.path.exists(fpath) else 0
+        try:
+            fname = header['file']['name']
+            fpath = os.path.join(self.transfer.save_dir, fname)
+            
+            if os.path.exists(fpath):
+                size = os.path.getsize(fpath)
+                print(f"[DEBUG] File ada, resume dari: {size}")
+                return size
+            else:
+                return 0
+        except Exception as e:
+            print(f"[DEBUG] Error cek offset: {e}")
+            return 0
