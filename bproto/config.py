@@ -15,6 +15,6 @@ DEFAULT_SECRET = "ernoba-root"
 DEFAULT_SAVE_DIR = "BProto_Received"
 
 # Features Flags
-ENABLE_ENCRYPTION = True     # Fitur Baru: Enkripsi AES
-ENABLE_COMPRESSION = False   # Siap untuk masa depan
+ENABLE_ENCRYPTION = False    # <--- Ubah ini jadi False
+ENABLE_COMPRESSION = False  # Siap untuk masa depan
 VERIFY_INTEGRITY = True      # Fitur Baru: Cek Hash File
